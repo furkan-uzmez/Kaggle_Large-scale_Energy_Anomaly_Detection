@@ -1,0 +1,5 @@
+building_col: building_id
+target_col: anomaly
+vault_fraction: 0.2
+n_dev_folds: 4
+seed: 42

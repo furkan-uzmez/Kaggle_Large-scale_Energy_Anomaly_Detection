@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
+import yaml
 
 from project.data.join import (
     DEFAULT_TEST_DUPLICATE_COPIES,
@@ -30,6 +31,11 @@ from project.data.join import (
 from project.data.load import (
     load_data_contract,
     scan_raw_table,
+)
+from project.data.splits import (
+    MAX_RANDOM_SEED,
+    build_split_diagnostics,
+    build_split_manifest,
 )
 from project.data.validate import (
     compute_file_sha256,
@@ -69,6 +75,11 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Run full validation and materialize Parquet under outputs/prepared/.",
     )
+    group.add_argument(
+        "--build-splits",
+        action="store_true",
+        help="Build a building-isolated development/vault manifest under outputs/splits/.",
+    )
     parser.add_argument(
         "--sample-rows",
         type=int,
@@ -100,7 +111,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help="Path to data_contract.yaml file.",
     )
     parsed = parser.parse_args(args)
-    if parsed.sample_rows <= 0:
+    if parsed.smoke and parsed.sample_rows <= 0:
         parser.error(f"--sample-rows must be a positive integer, got {parsed.sample_rows}")
     return parsed
 
@@ -185,11 +196,196 @@ def publish_atomic_artifacts(
                     pass
 
 
+def _validated_split_config(
+    split_config: Mapping[str, object],
+) -> tuple[str, str, float, int, int]:
+    allowed_fields = {
+        "building_col",
+        "target_col",
+        "vault_fraction",
+        "n_dev_folds",
+        "seed",
+    }
+    if not all(isinstance(field, str) for field in split_config):
+        raise TypeError("Split config field names must be strings")
+    unknown_fields = sorted(set(split_config).difference(allowed_fields))
+    if unknown_fields:
+        raise ValueError(f"Unknown split config field(s): {unknown_fields}")
+
+    building_col = split_config.get("building_col", "building_id")
+    target_col = split_config.get("target_col", "anomaly")
+    if not isinstance(building_col, str):
+        raise TypeError("Split config 'building_col' must be a string")
+    if not building_col.strip():
+        raise ValueError("Split config 'building_col' must be a non-empty string")
+    if not isinstance(target_col, str):
+        raise TypeError("Split config 'target_col' must be a string")
+    if not target_col.strip():
+        raise ValueError("Split config 'target_col' must be a non-empty string")
+
+    vault_fraction = split_config.get("vault_fraction", 0.2)
+    if isinstance(vault_fraction, bool) or not isinstance(vault_fraction, (int, float)):
+        raise TypeError("Split config 'vault_fraction' must be numeric")
+
+    n_dev_folds = split_config.get("n_dev_folds", 4)
+    if isinstance(n_dev_folds, bool) or not isinstance(n_dev_folds, int):
+        raise TypeError("Split config 'n_dev_folds' must be an integer")
+
+    seed = split_config.get("seed", 42)
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise TypeError("Split config 'seed' must be an integer")
+    if not 0 <= seed <= MAX_RANDOM_SEED:
+        raise ValueError(
+            f"Split config 'seed' must be between 0 and {MAX_RANDOM_SEED}"
+        )
+
+    return (
+        building_col.strip(),
+        target_col.strip(),
+        float(vault_fraction),
+        n_dev_folds,
+        seed,
+    )
+
+
+def _run_build_splits(
+    project_paths: ProjectPaths,
+    raw_data_dir: Path,
+    outputs_dir: Path,
+) -> int:
+    allowed_outputs_base = project_paths.outputs_dir.resolve()
+    resolved_outputs_dir = outputs_dir.resolve()
+    try:
+        resolved_outputs_dir.relative_to(allowed_outputs_base)
+    except ValueError:
+        print(
+            f"Error: Output directory {resolved_outputs_dir} must be within {allowed_outputs_base}",
+            file=sys.stderr,
+        )
+        return 1
+
+    split_dir = outputs_dir / "splits"
+    if split_dir.is_symlink():
+        resolved_split_dir = split_dir.resolve()
+        try:
+            resolved_split_dir.relative_to(allowed_outputs_base)
+        except ValueError:
+            print(
+                f"Error: Split directory {split_dir} is a symlink resolving to "
+                f"{resolved_split_dir}, which is outside {allowed_outputs_base}",
+                file=sys.stderr,
+            )
+            return 1
+
+    train_csv = raw_data_dir / TRAIN_CSV
+    split_config_path = project_paths.root / "configs" / "split.yaml"
+    if not train_csv.is_file():
+        print(f"Error: Required training CSV not found at {train_csv}", file=sys.stderr)
+        return 1
+    if not split_config_path.is_file():
+        print(f"Error: Split config not found at {split_config_path}", file=sys.stderr)
+        return 1
+
+    with split_config_path.open("r", encoding="utf-8") as config_file:
+        split_config = yaml.safe_load(config_file)
+    if not isinstance(split_config, Mapping):
+        raise TypeError(
+            f"Split config must contain a YAML mapping: {split_config_path}"
+        )
+
+    building_col, target_col, vault_fraction, n_dev_folds, seed = (
+        _validated_split_config(split_config)
+    )
+
+    print(f"Building split manifest from {train_csv}...")
+    manifest = build_split_manifest(
+        scan_raw_table(train_csv),
+        building_col=building_col,
+        target_col=target_col,
+        vault_fraction=vault_fraction,
+        n_dev_folds=n_dev_folds,
+        seed=seed,
+    )
+    diagnostics = build_split_diagnostics(manifest, seed, building_col=building_col)
+    diagnostics["hashes"] = {
+        "split_config_sha256": compute_file_sha256(split_config_path),
+        "train_csv_sha256": compute_file_sha256(train_csv),
+    }
+    diagnostics["split_config"] = dict(split_config)
+
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    resolved_outputs_dir = outputs_dir.resolve()
+    try:
+        resolved_outputs_dir.relative_to(allowed_outputs_base)
+    except ValueError:
+        print(
+            f"Error: Output directory {outputs_dir} resolves to {resolved_outputs_dir}, "
+            f"which is outside {allowed_outputs_base}",
+            file=sys.stderr,
+        )
+        return 1
+
+    split_dir.mkdir(parents=True, exist_ok=True)
+    resolved_split_dir = split_dir.resolve()
+    try:
+        resolved_split_dir.relative_to(allowed_outputs_base)
+    except ValueError:
+        print(
+            f"Error: Split directory {split_dir} resolves to {resolved_split_dir}, "
+            f"which is outside {allowed_outputs_base}",
+            file=sys.stderr,
+        )
+        return 1
+
+    staging_dir = Path(tempfile.mkdtemp(dir=outputs_dir, prefix=".staging_splits_"))
+    preserve_staging = False
+    try:
+        staged_manifest = staging_dir / "building_folds.parquet"
+        staged_metadata = staging_dir / "split_metadata.json"
+        final_manifest = split_dir / staged_manifest.name
+        final_metadata = split_dir / staged_metadata.name
+
+        manifest.write_parquet(staged_manifest)
+        diagnostics["artifacts"] = {
+            "building_folds_path": str(final_manifest),
+            "building_folds_sha256": compute_file_sha256(staged_manifest),
+        }
+        with staged_metadata.open("w", encoding="utf-8") as metadata_file:
+            json.dump(diagnostics, metadata_file, indent=2)
+            metadata_file.write("\n")
+
+        publish_atomic_artifacts(
+            staged_to_final={staged_manifest: final_manifest},
+            staged_lineage=staged_metadata,
+            final_lineage=final_metadata,
+        )
+    except PublicationRecoveryError:
+        preserve_staging = True
+        raise
+    finally:
+        if not preserve_staging and staging_dir.exists():
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+    print(f"Split manifest: {final_manifest}")
+    print(f"Split diagnostics: {final_metadata}")
+    print(json.dumps(diagnostics["summary"], sort_keys=True))
+    for partition in [
+        diagnostics["class_support"]["vault"],
+        *diagnostics["class_support"]["development_folds"],
+    ]:
+        label = (
+            "vault" if partition["fold"] is None else f"dev fold {partition['fold']}"
+        )
+        print(
+            f"  {label}: buildings={partition['building_count']}, rows={partition['row_count']}, "
+            f"positive={partition['positive_rows']}, negative={partition['negative_rows']}, "
+            f"prevalence={partition['anomaly_prevalence']:.6f}"
+        )
+    return 0
+
+
 def _run_prepare_data(args: list[str] | None = None) -> int:
     parsed = parse_args(args)
-    tracemalloc.start()
-    start_time = time.perf_counter()
-
     project_paths = (
         ProjectPaths.from_root(parsed.project_root)
         if parsed.project_root
@@ -197,6 +393,12 @@ def _run_prepare_data(args: list[str] | None = None) -> int:
     )
     raw_data_dir = parsed.data_dir or project_paths.raw_data_dir
     outputs_dir = parsed.output_dir or project_paths.outputs_dir
+
+    if parsed.build_splits:
+        return _run_build_splits(project_paths, raw_data_dir, outputs_dir)
+
+    tracemalloc.start()
+    start_time = time.perf_counter()
 
     # Constrain output directory to be within outputs_dir
     allowed_outputs_base = project_paths.outputs_dir.resolve()
