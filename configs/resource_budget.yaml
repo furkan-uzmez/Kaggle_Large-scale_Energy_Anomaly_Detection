@@ -1,0 +1,67 @@
+# Task 7: Resource Budget Configuration
+# Design-only schema — no execution is authorized until host preflight and
+# explicit user approval have been completed.
+#
+# This file is referenced by configs/experiments/feature_campaign.yaml.
+# Machine-dependent caps (ram, wall-time, fits, trials, seed count) remain
+# null until measurement and explicit user approval.
+
+schema_version: 1
+campaign_id: task7_candidate_design
+mode: design_only
+execution_authorized: false
+
+# Candidate sizing
+# candidate_target is a design aspiration, not a quota.
+# Fewer actual candidates are allowed; padding is explicitly forbidden.
+candidate_target: 100
+candidate_cap: 100
+
+# Resource caps — all null until host preflight measurement and user approval.
+# Setting any of these before measurement is prohibited by the stop rules below.
+maximum_cardinality: null
+max_ram_gb: null
+max_wall_time_seconds: null
+max_model_fits: null
+max_hpo_trials: null
+max_seed_count: null
+
+# Approval gates
+host_preflight_status: pending
+user_approval_status: pending
+
+# Stop rules — enforced before any execution gate is opened.
+# These rules are declarative design constraints; they are asserted here and
+# must be checked programmatically before any fit, HPO trial, or campaign launch.
+stop_rules:
+  - id: no_execution_while_caps_pending
+    description: >
+      No full baseline, FE, FS, HPO, or optional-model execution is permitted
+      while resource caps or user approval are pending. All such work remains
+      blocked until both host_preflight_status and user_approval_status
+      transition to 'approved'.
+
+  - id: preserve_grouped_folds_vault
+    description: >
+      The grouped building-held-out dev folds and vault split produced by
+      Task 6 must be preserved without modification. No row-wise fallback
+      or re-split is permitted during campaign execution.
+
+  - id: no_row_wise_fallback
+    description: >
+      Row-wise or random-split fallback is explicitly forbidden.
+      All evaluations must use the existing grouped/building-level fold
+      structure from the split manifest.
+
+  - id: never_pad_candidate_count
+    description: >
+      The candidate_target is a design aspiration, not a quota.
+      Padding the candidate count with duplicates, near-duplicates, or
+      synthetic variations solely to reach the target number is prohibited.
+      Fewer actual candidates are always acceptable.
+
+  - id: no_machine_dependent_caps_before_preflight
+    description: >
+      No machine-dependent resource caps (ram, wall-time, model fits, HPO
+      trials, seed count) may be set or enforced before the host preflight
+      measurement step has been completed and its results reviewed by the user.

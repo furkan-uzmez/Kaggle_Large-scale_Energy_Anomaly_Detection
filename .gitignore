@@ -13,6 +13,7 @@ __pycache__/
 .mypy_cache/
 .ipynb_checkpoints/
 *.py[cod]
+*.egg-info/
 
 # Local agent, browser, and commit-planning state
 /.agent/skills/

@@ -1,0 +1,551 @@
+# Task 7: Feature Campaign Design
+# Mode: design_only — no execution is authorized.
+# This file defines the finite experiment candidate matrix.
+# It does NOT duplicate seed or feature lists from baseline_config.
+# It does NOT claim scores or infer a winner.
+#
+# Task 6 contract (frozen) is inherited from baseline_config.
+# Resource constraints are governed by resource_budget.
+
+schema_version: 1
+campaign_id: task7_feature_campaign
+mode: design_only
+execution_authorized: false
+
+# Cross-references — do not duplicate seed or feature lists here.
+baseline_config: configs/experiments/baselines.yaml
+resource_budget: configs/resource_budget.yaml
+
+# Prediction contract — must match Task 6 frozen contract exactly.
+# Seed is NOT reduplicated here; it belongs exclusively to baseline_config.
+prediction_contract:
+  target: anomaly
+  positive_label: 1
+  primary_metric: roc_auc
+  guardrails:
+    - average_precision
+    - log_loss
+    - brier_score
+  split_manifest: outputs/splits/building_folds.parquet
+  folds: 4
+
+# Feature sets — core predictors reference baseline_config; no duplication.
+feature_sets:
+  core_predictors:
+    description: >
+      Numeric and categorical predictors as defined in baseline_config
+      (configs/experiments/baselines.yaml). No duplication here.
+    source: baseline_config
+  provided_features:
+    description: >
+      Additional provided features available in the joined training frame.
+      Used for the core-vs-provided comparison experiment.
+    source: outputs/prepared/train_joined.parquet
+    note: >
+      Only features verified as point-in-time safe and provenance-confirmed
+      may be promoted from this set. Unverified features remain blocked.
+  unverified_blocked:
+    description: >
+      Features whose provenance, leakage risk, or point-in-time validity
+      has not been confirmed. Blocked until reviewed and explicitly approved.
+    status: blocked
+
+# ---------------------------------------------------------------------------
+# Model Family Audit
+# ---------------------------------------------------------------------------
+# For each family: applicable=true means the family is architecturally viable.
+# Runnable but unapproved families get execution_status=blocked_unapproved_compute.
+# Families that are genuinely N/A (not merely resource-constrained) get
+# applicable=false with a substantive rejection_reason.
+# No OOF comparison artifact exists for any family yet (design-only phase).
+# ---------------------------------------------------------------------------
+
+model_family_audit:
+  extra_trees:
+    applicable: true
+    decision_reason: >
+      ExtraTrees handles mixed numeric/categorical data, tolerates missing
+      values via scikit-learn's missing-value support, and is compatible
+      with the building-grouped CV recipe. No architectural incompatibility.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_sklearn
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  random_forest:
+    applicable: true
+    decision_reason: >
+      RandomForest is a proven ensemble baseline and is architecturally
+      compatible with grouped cross-validation. No leakage concerns specific
+      to grouped folds. Provides variance reference vs ExtraTrees.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_sklearn
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  hist_gradient_boosting:
+    applicable: true
+    decision_reason: >
+      HistGradientBoosting is already present as the Task 6 baseline candidate
+      (configs/experiments/baselines.yaml: hist_gradient_boosting). It is
+      architecturally compatible with grouped CV. This entry tracks the
+      campaign-level HPO and feature engineering variants. No comparative
+      OOF artifact exists yet for campaign variants.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_sklearn
+      - recipe_hist_gradient_boosting  # baseline_config reference
+    planned_config:
+      note: >
+        May reference baseline_config params as starting point; campaign
+        variants will be defined once execution is authorized.
+      baseline_ref: configs/experiments/baselines.yaml
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  ebm_gam:
+    applicable: true
+    decision_reason: >
+      Explainable Boosting Machine (GAM family) is interpretable and supports
+      tabular anomaly detection. Architecturally compatible with grouped CV.
+      Depends on interpret-ml package availability, which is not yet confirmed
+      on target host.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_interpret
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  svm:
+    applicable: true
+    decision_reason: >
+      SVM (RBF or linear kernel) is applicable for tabular anomaly detection
+      at moderate scale. Requires feature scaling. Architecturally compatible
+      with sklearn pipeline and grouped CV. Runtime may be prohibitive at
+      full scale, but that is a resource concern, not an architectural one.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_sklearn
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  knn:
+    applicable: true
+    decision_reason: >
+      k-NN with appropriate distance metric is applicable for tabular detection.
+      Requires feature scaling and careful distance choice. Architecturally
+      compatible with grouped CV. Runtime and memory scale super-linearly with
+      training set size but this is a resource concern; not architecturally N/A.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_sklearn
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  tabular_neural_net:
+    applicable: true
+    decision_reason: >
+      Tabular neural networks (e.g. pytorch-tabnet, TabNet, or simple MLP)
+      are applicable for energy anomaly detection tasks. Requires torch or
+      equivalent dependency, GPU or sufficient CPU, and careful grouped CV
+      integration. Dependency availability and compute are not yet confirmed.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_torch
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+  autogluon:
+    applicable: true
+    decision_reason: >
+      AutoGluon TabularPredictor supports grouped CV via custom splits,
+      handles mixed feature types, and performs internal ensembling and HPO.
+      Architecturally viable; requires autogluon package and significant
+      compute budget not yet approved.
+    resource_estimate: null
+    compatible_recipes:
+      - recipe_grouped_cv_autogluon
+    planned_config: null
+    execution_status: blocked_unapproved_compute
+    oof_artifact: null
+    rejection_reason: null
+
+# ---------------------------------------------------------------------------
+# Context Baselines
+# ---------------------------------------------------------------------------
+# These provide comparison anchors. They are NOT model_family_audit entries.
+# ---------------------------------------------------------------------------
+
+context_baselines:
+  business_incumbent:
+    description: >
+      The business/incumbent rule-based or heuristic anomaly detector
+      currently deployed or used as the operational benchmark.
+    status: pending_input
+    rationale: >
+      Incumbent system details (precision, recall, AUC, or threshold) have
+      not been provided. This anchor remains pending until the user supplies
+      incumbent performance data or confirms no incumbent exists.
+    oof_artifact: null
+
+  temporal_naive:
+    description: >
+      Temporal-naive baseline that predicts based on recent label history
+      for each building (e.g., rolling mean anomaly rate).
+    applicable: false
+    status: N/A
+    rationale: >
+      In the grouped building-held-out evaluation design, each validation
+      fold contains unseen buildings with no label history in the training
+      set. A temporal-naive predictor that requires per-building label history
+      cannot produce meaningful predictions for unseen buildings. This is an
+      architectural incompatibility with the evaluation protocol, not a
+      resource constraint.
+    rejection_reason: >
+      Unseen buildings in held-out folds have no label history available
+      at prediction time. Temporal-naive approach is not applicable to
+      this grouped/hierarchical evaluation design.
+
+  grouped_hierarchical:
+    description: >
+      Group-level or hierarchical model that uses building-level aggregates
+      or cluster-level priors to improve predictions.
+    status: pending
+    rationale: >
+      Whether point-in-time-safe building-level aggregates can be constructed
+      without leakage is uncertain. Availability of grouping features and
+      valid aggregation windows has not been confirmed. Keeping as pending
+      rather than asserting N/A until data investigation is complete.
+    oof_artifact: null
+
+  current_champion:
+    description: >
+      No model is currently designated as a comparative champion. Task 6 produced
+      a workflow-continuity smoke run, not an approved performance comparison.
+    status: pending_comparison
+    rationale: >
+      Task 6 produced a non-comparative smoke run, not comparative evidence, so
+      it cannot select a champion. No comparative full OOF artifacts exist yet.
+      Champion status remains pending until the approved Task 8 evaluation is
+      completed.
+    source: configs/experiments/baselines.yaml
+    oof_artifact: null
+
+# ---------------------------------------------------------------------------
+# Experiment Matrix
+# ---------------------------------------------------------------------------
+# Each row is a distinct design hypothesis. All result/OOF fields are null.
+# No threshold tuning. No fitting in Task 7.
+# Stable IDs, rationale, status, and execution_status are required.
+#
+# status           = design intent (planned / conditional / blocked / N/A)
+# execution_status = current run gate, never ahead of the model family's gate.
+# While execution_authorized is false and the model families are
+# blocked_unapproved_compute, no row may advertise a runnable execution_status.
+# ---------------------------------------------------------------------------
+
+experiment_matrix:
+
+  # --- Feature Set Comparisons ---
+
+  - id: feat_core_vs_provided
+    hypothesis: >
+      Does including all provided features from train_joined.parquet improve
+      roc_auc over the Task 6 core 9-feature set?
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: provided_features
+    model_family: hist_gradient_boosting
+    varies: feature_set
+    result: null
+    oof_artifact: null
+
+  - id: feat_missingness_indicators
+    hypothesis: >
+      Adding binary missingness indicator columns for features with substantial
+      null rates improves roc_auc by encoding the missingness structure.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: missingness_indicator_columns
+    result: null
+    oof_artifact: null
+
+  - id: feat_preserve_raw_vs_invalid_sentinel
+    hypothesis: >
+      Preserving raw values (with scikit-learn's native missing handling) versus
+      substituting a verified-invalid sentinel for known-bad readings differs in
+      downstream model performance.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: invalid_value_encoding
+    result: null
+    oof_artifact: null
+
+  - id: feat_categorical_interactions
+    hypothesis: >
+      Explicit pairwise or conditional interaction features between primary_use
+      and calendar variables (hour, weekday, month) improve prediction beyond
+      what tree splits capture automatically.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: categorical_interactions
+    result: null
+    oof_artifact: null
+
+  - id: feat_frequency_encoding
+    hypothesis: >
+      Frequency encoding of primary_use (count or proportion) captures
+      category prevalence information that ordinal encoding misses.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: frequency_encoding
+    result: null
+    oof_artifact: null
+
+  - id: feat_conditional_cross_fitted_target_encoding
+    hypothesis: >
+      Cross-fitted target encoding of primary_use conditional on fold membership
+      reduces leakage versus naive target encoding and may improve calibration.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: target_encoding_strategy
+    rationale: >
+      Must be implemented with fold-local fitting to avoid leakage across
+      building-grouped folds.
+    result: null
+    oof_artifact: null
+
+  - id: feat_group_aggregates_blocked
+    hypothesis: >
+      Building-level group aggregate features (e.g. rolling mean meter_reading per
+      building) may improve predictions if computed in a point-in-time-safe way.
+      Group aggregates are blocked until point-in-time safety is confirmed.
+    status: conditional
+    execution_status: blocked
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: group_aggregates
+    rationale: >
+      Blocked pending confirmation that group aggregate windows are point-in-time
+      safe and do not leak future information. Cannot be authorized until
+      temporal availability is verified.
+    result: null
+    oof_artifact: null
+
+  - id: feat_meter_deviation_ratio
+    hypothesis: >
+      A meter deviation/ratio feature (e.g. meter_reading normalized by
+      building square_feet or historical building mean) captures anomalous
+      per-building consumption patterns more directly than raw readings.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: derived_meter_features
+    result: null
+    oof_artifact: null
+
+  - id: feat_histogram_quantile
+    hypothesis: >
+      Histogram-binned or quantile-transformed meter_reading features capture
+      non-linear distribution structure that benefits linear models or
+      distance-based models.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: histogram_quantile_transform
+    result: null
+    oof_artifact: null
+
+  - id: feat_missingness_bitmask
+    hypothesis: >
+      A single integer bitmask encoding which features are missing for each row
+      provides a compact missingness summary that tree models can split on.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: missingness_bitmask
+    result: null
+    oof_artifact: null
+
+  - id: feat_safe_calendar_numeric_transforms
+    hypothesis: >
+      Safe calendar and numeric transforms (sin/cos hour encoding, log-scale
+      meter_reading, year_built relative age) improve model generalisation
+      beyond raw integer representations.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: calendar_numeric_transforms
+    result: null
+    oof_artifact: null
+
+  # --- Dimensionality / Selection ---
+
+  - id: dim_pca_vs_passthrough
+    hypothesis: >
+      PCA projection of numeric features before fitting improves roc_auc
+      for distance-based models (SVM, k-NN) compared to raw feature passthrough.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: svm
+    varies: pca_vs_passthrough
+    result: null
+    oof_artifact: null
+
+  - id: dim_semantic_block_drop
+    hypothesis: >
+      Dropping semantic feature blocks (e.g. building metadata only, calendar
+      only) isolates signal contribution and reveals which block drives AUC.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: semantic_feature_block_drops
+    result: null
+    oof_artifact: null
+
+  - id: dim_fold_local_selector_vs_passthrough
+    hypothesis: >
+      A fold-local feature selector (e.g. univariate filter or L1 penalty-based
+      selection fitted per training fold) versus passthrough changes effective
+      feature count and reduces noise for linear models.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: logistic_l2
+    varies: fold_local_feature_selector
+    result: null
+    oof_artifact: null
+
+  # --- Training Regime ---
+
+  - id: regime_natural_vs_class_weighted
+    hypothesis: >
+      Training with class_weight='balanced' (class-weighted baseline) versus
+      natural label distribution improves average_precision for the minority
+      anomaly class at the cost of roc_auc calibration.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: class_weighting
+    result: null
+    oof_artifact: null
+
+  - id: regime_same_family_hpo_vs_default
+    hypothesis: >
+      Bayesian HPO for HGB hyperparameters (learning_rate, max_depth,
+      min_samples_leaf) within the same model family yields meaningful
+      roc_auc improvement over default parameters.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: hpo_vs_default
+    result: null
+    oof_artifact: null
+
+  # --- Prohibited / Blocked Entries ---
+
+  - id: prohibited_opaque_building_id_digit_extraction
+    hypothesis: >
+      Digit extraction from opaque building_id string (e.g. numeric suffix
+      or substring) as a feature.
+    status: N/A
+    execution_status: prohibited
+    feature_set: null
+    model_family: null
+    varies: building_id_digit_features
+    rationale: >
+      building_id is an opaque identifier. Digit extraction from an opaque ID
+      imposes an unsupported assumption that digits encode meaningful metadata.
+      This is explicitly prohibited as it may introduce spurious correlations
+      and is architecturally unsound for generalisation to unseen buildings.
+    result: null
+    oof_artifact: null
+
+  - id: blocked_unverified_gte_family
+    hypothesis: >
+      Using gte_probe, gte_vendor_raw, or gte_reading_smooth as predictors
+      may improve roc_auc by capturing sensor or third-party signals.
+    status: blocked
+    execution_status: blocked
+    feature_set: unverified_blocked
+    model_family: null
+    varies: gte_family_features
+    rationale: >
+      gte_* features have not passed provenance review. Their leakage risk,
+      point-in-time availability, and data quality have not been verified.
+      These features remain blocked until an explicit provenance and leakage
+      review is completed and the user approves their inclusion.
+    result: null
+    oof_artifact: null
+
+  # --- Additional Coverage Entries ---
+
+  - id: feat_missingness_passthrough_comparison
+    hypothesis: >
+      Comparing models trained with no imputation (native NaN passthrough for
+      HGB) versus simple-imputed inputs reveals whether imputation adds signal
+      or noise.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: hist_gradient_boosting
+    varies: imputation_strategy
+    result: null
+    oof_artifact: null
+
+  - id: model_extratrees_core_features
+    hypothesis: >
+      ExtraTrees on the core 9-feature set provides a strong variance-reducing
+      ensemble baseline whose OOF roc_auc can be compared against HGB.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: extra_trees
+    varies: model_family
+    result: null
+    oof_artifact: null
+
+  - id: model_autogluon_core_features
+    hypothesis: >
+      AutoGluon with default settings on the core feature set automates
+      ensemble construction and HPO within a single grouped-CV evaluation.
+    status: planned
+    execution_status: blocked_unapproved_compute
+    feature_set: core_predictors
+    model_family: autogluon
+    varies: model_family
+    result: null
+    oof_artifact: null
