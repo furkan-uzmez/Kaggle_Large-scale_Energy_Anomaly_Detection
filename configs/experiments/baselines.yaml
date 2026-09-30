@@ -1,0 +1,52 @@
+# Task 6: Baseline Portfolio Configuration
+# Frozen contract for development-only baseline out-of-fold evaluation.
+
+seed: 42
+folds: 4
+repeats: 1
+split_manifest: outputs/splits/building_folds.parquet
+
+target: anomaly
+positive_label: 1
+
+primary_metric: roc_auc
+guardrails:
+  - average_precision
+  - log_loss
+  - brier_score
+
+features:
+  numeric:
+    - meter_reading
+    - square_feet
+    - year_built
+    - floor_count
+    - hour
+    - weekday
+    - month
+    - year
+  categorical:
+    - primary_use
+
+models:
+  dummy_prior:
+    model_family: dummy
+    recipe_id: recipe_dummy_prior
+    model_config_id: cfg_dummy_prior
+    params:
+      strategy: prior
+  logistic_l2:
+    model_family: linear_model
+    recipe_id: recipe_logistic_l2
+    model_config_id: cfg_logistic_l2
+    params:
+      C: 1.0
+      l1_ratio: 0.0
+      class_weight: null
+      max_iter: 1000
+  hist_gradient_boosting:
+    model_family: ensemble_gbdt
+    recipe_id: recipe_hist_gradient_boosting
+    model_config_id: cfg_hist_gradient_boosting
+    params:
+      early_stopping: false
