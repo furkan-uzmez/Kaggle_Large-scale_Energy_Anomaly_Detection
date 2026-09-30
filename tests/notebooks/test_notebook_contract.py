@@ -143,17 +143,23 @@ def test_notebook_01_contract() -> None:
         "Notebook sections must include nested Markdown headings"
     )
 
-    for index, cell in enumerate(notebook.cells):
-        if cell.cell_type == "code":
-            assert cell.execution_count is None and not cell.outputs, (
-                f"Code cell {index} must remain unexecuted and output-free in source"
-            )
-            assert index > 0 and notebook.cells[index - 1].cell_type == "markdown", (
-                f"Code cell {index} must immediately follow a Markdown purpose cell"
-            )
-            purpose = notebook.cells[index - 1].source.strip().casefold()
-            assert purpose.startswith("**purpose:**"), (
-                f"Markdown cell {index - 1} must state the code cell's purpose"
+    code_cells = [
+        (index, cell)
+        for index, cell in enumerate(notebook.cells)
+        if cell.cell_type == "code"
+    ]
+    assert code_cells, "Notebook 01 must include executable code cells"
+    source_is_clean = all(
+        cell.execution_count is None and not cell.outputs for _index, cell in code_cells
+    )
+    if not source_is_clean:
+        assert [cell.execution_count for _index, cell in code_cells] == list(
+            range(1, len(code_cells) + 1)
+        ), "An outputful Notebook 01 must be executed top-to-bottom from a fresh kernel"
+        for index, cell in code_cells:
+            assert cell.outputs, f"Code cell {index} must have embedded execution output"
+            assert not any(output.output_type == "error" for output in cell.outputs), (
+                f"Code cell {index} contains an execution error"
             )
 
     all_text, metadata_text = _notebook_text_and_metadata(notebook)

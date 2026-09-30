@@ -2,6 +2,9 @@
 /data/
 /outputs/
 
+# Generated duplicate notebook execution copies
+/notebooks/executed/
+
 # Python virtual environment and caches
 /.venv/
 __pycache__/
