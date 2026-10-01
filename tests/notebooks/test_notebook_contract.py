@@ -18,6 +18,7 @@ REQUIRED_SECTIONS = (
     "Reproducibility and raw data",
     "Join and data integrity",
     "Target and data quality",
+    "Outlier analysis",
     "Train/test shift",
     "Feature availability and leakage",
     "Persisted split decision",
@@ -60,18 +61,18 @@ NOTEBOOK_02_REQUIRED_SECTIONS = (
     "Resource budget and stop rules",
     "Smoke-test requirements",
 )
-# Notebook 02 is design-only: no fitting, tuning, selection, or scoring.
+# Notebook 02 reads artifact metrics but never fits, tunes, selects, or scores.
 NOTEBOOK_02_FORBIDDEN_CODE = re.compile(
     r"(?:\.fit\s*\(|\bfit_transform\s*\(|\bfit_predict\s*\(|\bpartial_fit\s*\(|"
     r"\.predict\w*\s*\(|\bpredict_proba\b|\bdecision_function\s*\(|"
     r"\b(?:GridSearchCV|RandomizedSearchCV|HalvingGridSearchCV|HalvingRandomSearchCV|"
     r"BayesSearchCV|optuna|hyperopt|cross_val_score|cross_val_predict|cross_validate|"
     r"RFECV|RFE|SelectKBest|SelectFromModel|SequentialFeatureSelector|"
-    r"roc_auc_score|average_precision_score|log_loss|brier_score_loss|"
+    r"roc_auc_score|average_precision_score|brier_score_loss|"
     r"precision_recall_curve|roc_curve|train_test_split|GroupKFold|StratifiedKFold|"
     r"StratifiedGroupKFold|TimeSeriesSplit)\b|"
     r"\b(?:subprocess|runpy|joblib|pickle|upload|submit)\b|threshold|"
-    r"\bos\.system\s*\(|\.to_csv\s*\(|\.write_parquet\s*\(|\.write_csv\s*\()",
+    r"\blog_loss\s*\(|\bos\.system\s*\(|\.to_csv\s*\(|\.write_parquet\s*\(|\.write_csv\s*\()",
     re.IGNORECASE,
 )
 # Reject any claim of a measured score, ranking, or winner.
@@ -276,6 +277,60 @@ def test_notebook_01_contract() -> None:
         )
 
 
+def test_notebook_01_outlier_audit_contract() -> None:
+    notebook = nbformat.read(NOTEBOOK_PATH, as_version=4)
+    code_source = "\n".join(
+        cell.source for cell in notebook.cells if cell.cell_type == "code"
+    )
+    full_source = "\n".join(cell.source for cell in notebook.cells)
+
+    # 1. Required Outlier analysis section
+    headings = _markdown_headings(notebook)
+    level_two_headings = [title for level, title in headings if level == 2]
+    assert "Outlier analysis" in level_two_headings
+    assert (
+        level_two_headings.index("Target and data quality")
+        < level_two_headings.index("Outlier analysis")
+        < level_two_headings.index("Train/test shift")
+    )
+
+    # 2. Helper call dev manifest
+    assert "from project.data.outlier_audit import build_outlier_audit" in code_source
+    assert "build_outlier_audit(" in code_source
+    assert "train_joined" in code_source
+    assert "split_path" in code_source or "split_manifest" in code_source
+    assert "building_folds_sha256" in code_source
+
+    # Feature exclusions
+    for col in ("building_id", "row_id", "anomaly", "timestamp"):
+        assert col in code_source
+    assert "gte_" in code_source
+
+    # 3. Charts included and scaled
+    assert "plt." in code_source
+    lowered_code = code_source.casefold()
+    assert "hist" in lowered_code
+    assert "boxplot" in lowered_code
+    assert "log1p" in lowered_code or "signed" in lowered_code
+    assert "meter_by_building" in code_source
+    assert "meter_by_month" in code_source
+
+    # 4. OIA data-sourced and guardrails
+    assert "Observation" in full_source
+    assert "Interpretation" in full_source
+    assert "Action" in full_source
+    lowered_full = full_source.casefold()
+    assert "iqr" in lowered_full and "mad" in lowered_full
+    assert "degenerate" in lowered_full or "unavailable" in lowered_full
+    assert "exploratory" in lowered_full
+    assert "scale" in lowered_full or "season" in lowered_full
+
+    # 5. Handoff note in decisions
+    assert "handoff" in lowered_full
+    assert "notebook 02" in lowered_full
+    assert "raw" in lowered_full and "transform" in lowered_full
+
+
 def test_domain_auc_below_chance_is_flagged_as_inverse_ranking() -> None:
     interpret_domain_auc = _load_notebook_function("interpret_domain_auc")
 
@@ -347,11 +402,20 @@ def test_notebook_02_contract() -> None:
         "Notebook 02 sections must include nested Markdown headings"
     )
 
-    for index, cell in enumerate(notebook.cells):
-        if cell.cell_type != "code":
-            continue
-        assert cell.execution_count is None and not cell.outputs, (
-            f"Code cell {index} must remain unexecuted and output-free in source"
+    code_cells = [
+        (index, cell)
+        for index, cell in enumerate(notebook.cells)
+        if cell.cell_type == "code"
+    ]
+    assert code_cells, "Notebook 02 must include executable code cells"
+    assert [cell.execution_count for _index, cell in code_cells] == list(
+        range(1, len(code_cells) + 1)
+    ), "Notebook 02 must be executed top-to-bottom from a fresh kernel"
+
+    for index, cell in code_cells:
+        assert cell.outputs, f"Code cell {index} must have embedded execution output"
+        assert not any(output.output_type == "error" for output in cell.outputs), (
+            f"Code cell {index} contains an execution error"
         )
         assert not dict(cell.metadata), (
             f"Code cell {index} must carry empty per-cell metadata"
@@ -428,7 +492,8 @@ def test_notebook_02_performs_no_fitting_tuning_or_selection() -> None:
 def test_notebook_02_makes_no_score_or_winner_claims() -> None:
     notebook = _read_notebook_02()
 
-    all_text, _metadata_text = _notebook_text_and_metadata(notebook)
+    # Validated artifact outputs may contain measured numbers; static prose may not invent them.
+    all_text = "\n".join(cell.source for cell in notebook.cells if cell.cell_type == "markdown")
     match = NOTEBOOK_02_SCORE_CLAIM.search(all_text)
     assert match is None, (
         "Notebook 02 must not claim a measured score, ranking, or winner "
