@@ -80,6 +80,14 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Build a building-isolated development/vault manifest under outputs/splits/.",
     )
+    group.add_argument(
+        "--build-repeated-splits", action="store_true",
+        help="Build repeated DEV folds from prepared data, preserving the original vault.",
+    )
+    parser.add_argument(
+        "--split-config", type=Path, default=None,
+        help="Repeated split YAML configuration (default: configs/split_repeated.yaml).",
+    )
     parser.add_argument(
         "--sample-rows",
         type=int,
@@ -111,6 +119,8 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help="Path to data_contract.yaml file.",
     )
     parsed = parser.parse_args(args)
+    if parsed.split_config is not None and not parsed.build_repeated_splits:
+        parser.error("--split-config is supported only with --build-repeated-splits")
     if parsed.smoke and parsed.sample_rows <= 0:
         parser.error(f"--sample-rows must be a positive integer, got {parsed.sample_rows}")
     return parsed
@@ -384,6 +394,38 @@ def _run_build_splits(
     return 0
 
 
+def _run_build_repeated_splits(project_paths: ProjectPaths, parsed: argparse.Namespace) -> int:
+    from project.data.repeated_splits import write_repeated_split_artifacts
+
+    root = project_paths.root.resolve()
+    config_path = parsed.split_config or root / "configs" / "split_repeated.yaml"
+    if not config_path.is_absolute():
+        config_path = root / config_path
+    with config_path.open(encoding="utf-8") as handle:
+        config = yaml.safe_load(handle)
+    fields = {"source_manifest", "prepared_train", "output_dir", "n_dev_folds", "split_seeds"}
+    if not isinstance(config, Mapping) or set(config) != fields:
+        raise ValueError(f"Repeated split config must contain exactly {sorted(fields)}")
+    paths = {}
+    for field in ("source_manifest", "prepared_train", "output_dir"):
+        value = config[field]
+        if not isinstance(value, str) or not value or Path(value).is_absolute():
+            raise ValueError(f"Repeated config {field} must be a relative path")
+        path = (root / value).resolve()
+        path.relative_to(root)
+        paths[field] = path
+    if parsed.output_dir is not None or parsed.data_dir is not None:
+        raise ValueError("Repeated splits use prepared_train and output_dir from --split-config")
+    metadata = write_repeated_split_artifacts(
+        pl.scan_parquet(paths["prepared_train"]), paths["source_manifest"], root,
+        config["split_seeds"], config["n_dev_folds"], output_dir=paths["output_dir"],
+    )
+    print(f"Repeated split manifest: {metadata['artifacts']['building_folds_path']}")
+    print(f"Family SHA256: {metadata['family_sha256']}")
+    print(json.dumps(metadata["summary"], sort_keys=True))
+    return 0
+
+
 def _run_prepare_data(args: list[str] | None = None) -> int:
     parsed = parse_args(args)
     project_paths = (
@@ -394,6 +436,8 @@ def _run_prepare_data(args: list[str] | None = None) -> int:
     raw_data_dir = parsed.data_dir or project_paths.raw_data_dir
     outputs_dir = parsed.output_dir or project_paths.outputs_dir
 
+    if parsed.build_repeated_splits:
+        return _run_build_repeated_splits(project_paths, parsed)
     if parsed.build_splits:
         return _run_build_splits(project_paths, raw_data_dir, outputs_dir)
 
