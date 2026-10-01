@@ -3,8 +3,9 @@
 
 seed: 42
 folds: 4
-repeats: 1
-split_manifest: outputs/splits/building_folds.parquet
+repeats: 3
+split_seeds: [42, 43, 44]
+split_manifest: outputs/splits/building_folds_repeated.parquet
 
 target: anomaly
 positive_label: 1

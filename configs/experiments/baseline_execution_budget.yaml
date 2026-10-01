@@ -1,0 +1,23 @@
+# User-approved baseline execution only; no feature/PCA/HPO campaign approval.
+scope: baseline_only
+approval_status: approved
+resource_status: approved
+models:
+  - dummy_prior
+  - logistic_l2
+  - hist_gradient_boosting
+fold_ids: [0, 1, 2, 3]
+seed: 42
+repeat_ids: [0, 1, 2]
+split_seeds: [42, 43, 44]
+planned_fits: 36
+cpu_threads: 4
+# User approval: RAM limit removed; actual process-tree RSS remains telemetry.
+max_rss_bytes: null
+rss_limit_enforced: false
+max_wall_seconds: 2700
+preflight:
+  logical_cpu_threads: 20
+  total_memory_mib: 15683
+  available_memory_mib: 6818
+  free_disk_gb: 240

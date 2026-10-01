@@ -26,8 +26,10 @@ prediction_contract:
     - average_precision
     - log_loss
     - brier_score
-  split_manifest: outputs/splits/building_folds.parquet
+  split_manifest: outputs/splits/building_folds_repeated.parquet
   folds: 4
+  repeats: 3
+  split_seeds: [42, 43, 44]
 
 # Feature sets — core predictors reference baseline_config; no duplication.
 feature_sets:

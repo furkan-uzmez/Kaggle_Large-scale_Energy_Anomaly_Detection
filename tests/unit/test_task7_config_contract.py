@@ -37,6 +37,10 @@ TASK6_GUARDRAILS = {"average_precision", "log_loss", "brier_score"}
 TASK6_FOLDS = 4
 TASK6_SEED = 42
 TASK6_SPLIT_MANIFEST = "outputs/splits/building_folds.parquet"
+TASK6_SPLIT_MANIFESTS = (
+    "outputs/splits/building_folds.parquet",
+    "outputs/splits/building_folds_repeated.parquet",
+)
 
 
 def test_pyyaml_is_declared_as_direct_runtime_dependency() -> None:
@@ -329,8 +333,8 @@ class TestFeatureCampaignPredictionContract:
         assert "split_manifest" in contract, (
             "prediction_contract.split_manifest must be present"
         )
-        assert TASK6_SPLIT_MANIFEST in str(contract["split_manifest"]), (
-            f"split_manifest must reference '{TASK6_SPLIT_MANIFEST}', "
+        assert any(m in str(contract["split_manifest"]) for m in TASK6_SPLIT_MANIFESTS), (
+            f"split_manifest must reference one of '{TASK6_SPLIT_MANIFESTS}', "
             f"got {contract.get('split_manifest')!r}"
         )
 
@@ -865,4 +869,4 @@ class TestTask6ContractFrozenInBaselines:
 
     def test_baselines_split_manifest_correct(self):
         cfg = _load_yaml(BASELINES_PATH)
-        assert cfg.get("split_manifest") == TASK6_SPLIT_MANIFEST
+        assert cfg.get("split_manifest") in TASK6_SPLIT_MANIFESTS

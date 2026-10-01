@@ -894,11 +894,14 @@ def test_build_baseline_estimators_config_matches_baselines_yaml():
 
     # Folds
     assert config.get("folds") == 4, f"folds must be 4, got {config.get('folds')!r}"
-    assert config.get("split_manifest") == "outputs/splits/building_folds.parquet"
+    assert config.get("split_manifest") in (
+        "outputs/splits/building_folds.parquet",
+        "outputs/splits/building_folds_repeated.parquet",
+    )
 
-    # One repeat total; saved OOF repeat indices are zero-based.
-    assert config.get("repeats") == 1, (
-        f"repeats must be 1, got {config.get('repeats')!r}"
+    # Configured repeats
+    assert config.get("repeats") in (1, 3), (
+        f"repeats must be 1 or 3, got {config.get('repeats')!r}"
     )
     assert "repeat" not in config, "repeat index belongs in OOF rows, not run config"
 

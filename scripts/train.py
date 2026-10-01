@@ -13,7 +13,7 @@ import sys
 import time
 import tracemalloc
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,12 +21,14 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+import pyarrow.parquet as pq
 import yaml
 
+from project.experiments.baseline_budget import load_baseline_budget, run_guarded
 from project.experiments.inventory import append_inventory_records
 from project.features.availability import select_predictor_columns
 from project.features.registry import build_lead_baseline_registry
-from project.models.artifacts import validate_oof_artifact
+from project.models.artifacts import load_repeated_manifest, validate_oof_parquet
 from project.models.baselines import build_baseline_estimators
 from project.models.metrics import evaluate_binary_metrics, positive_class_scores
 
@@ -42,6 +44,8 @@ DEFAULT_TARGET_COLUMN = "anomaly"
 EXPECTED_FOLD_IDS = (0, 1, 2, 3)
 MAX_SMOKE_BUILDINGS = 8
 APPROVED_SEED = 42
+SPLIT_SEEDS = (42, 43, 44)
+OOF_BATCH_SIZE = 64_000
 EXPECTED_CANDIDATES = (
     "dummy_prior",
     "logistic_l2",
@@ -74,6 +78,8 @@ class FoldData:
     fold_id: int
     train: pl.DataFrame
     validation: pl.DataFrame
+    repeat: int = 0
+    split_seed: int = 42
 
 
 @dataclass(frozen=True)
@@ -85,6 +91,7 @@ class PreparedRunData:
     folds: tuple[FoldData, ...]
     data_scope: str
     used_synthetic_fallback: bool
+    development_assignments: pl.DataFrame | None = None
 
 
 def validate_baseline_training_frame(
@@ -246,8 +253,8 @@ def _validate_execution_config(config: Mapping[str, Any]) -> tuple[str, ...]:
         )
     if config.get("folds") != len(EXPECTED_FOLD_IDS):
         raise ValueError(f"Config folds must be {len(EXPECTED_FOLD_IDS)}")
-    if config.get("repeats") != 1:
-        raise ValueError("Task 6 requires exactly one repeat")
+    if config.get("repeats") != 3 or config.get("split_seeds") != list(SPLIT_SEEDS):
+        raise ValueError("Baseline requires three repeats with split seeds [42, 43, 44]")
     if config.get("target") != DEFAULT_TARGET_COLUMN:
         raise ValueError(f"Config target must be {DEFAULT_TARGET_COLUMN!r}")
     if config.get("positive_label") != 1:
@@ -294,7 +301,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--smoke", action="store_true", help="Run one bounded dev fold.")
-    mode.add_argument("--full", action="store_true", help="Run all four dev folds.")
+    mode.add_argument("--full", action="store_true", help="Run four dev folds across three repeats.")
+    parser.add_argument(
+        "--budget",
+        type=Path,
+        default=Path("configs/experiments/baseline_execution_budget.yaml"),
+        help="Baseline-only approved execution budget required for --full.",
+    )
     parser.add_argument(
         "--max-buildings",
         type=int,
@@ -325,42 +338,22 @@ def _sha256_file(path: Path) -> str:
 
 def _load_manifest(path: Path) -> tuple[pl.DataFrame, pl.DataFrame]:
     scan = pl.scan_parquet(path)
+    columns = scan.collect_schema().names()
+    if "repeat" in columns and "seed" in columns:
+        manifest = load_repeated_manifest(path)
+        return manifest, manifest.filter(pl.col("split") == "dev").select(
+            BUILDING_COLUMN, "repeat", "seed", "fold"
+        )
     required_columns = (BUILDING_COLUMN, "split", "fold")
-    schema = scan.collect_schema()
-    missing = [column for column in required_columns if column not in schema]
+    missing = [c for c in required_columns if c not in columns]
     if missing:
         raise ValueError(f"Building manifest is missing columns: {missing}")
-
-    manifest = scan.select(required_columns).collect()
-    if manifest.height == 0:
-        raise ValueError("Building manifest is empty")
-    if manifest.get_column(BUILDING_COLUMN).null_count():
-        raise ValueError("Building manifest contains null building IDs")
-    if manifest.select(BUILDING_COLUMN).is_duplicated().any():
-        raise ValueError("Building manifest must contain one row per building")
-
-    split_values = set(manifest.get_column("split").unique().to_list())
-    if split_values != {"dev", "vault"}:
-        raise ValueError("Building manifest must contain exactly dev and vault splits")
-    development = manifest.filter(pl.col("split") == "dev")
-    vault = manifest.filter(pl.col("split") == "vault")
-    if vault.height == 0 or vault.get_column("fold").null_count() != vault.height:
-        raise ValueError("Vault manifest rows must exist and have null fold IDs")
-    if development.get_column("fold").null_count():
-        raise ValueError("Every development building must have a persisted fold ID")
-    fold_values = tuple(
-        sorted(int(value) for value in development.get_column("fold").unique().to_list())
+    manifest = pl.read_parquet(path).select(required_columns)
+    dev = manifest.filter(pl.col("split") == "dev").with_columns(
+        pl.lit(0, dtype=pl.Int64).alias("repeat"),
+        pl.lit(42, dtype=pl.Int64).alias("seed"),
     )
-    if fold_values != EXPECTED_FOLD_IDS:
-        raise ValueError(
-            f"Persisted development folds must be {EXPECTED_FOLD_IDS}, got {fold_values}"
-        )
-    if any(
-        development.filter(pl.col("fold") == fold_id).height == 0
-        for fold_id in EXPECTED_FOLD_IDS
-    ):
-        raise ValueError("Every persisted development fold must contain buildings")
-    return manifest, development.select(BUILDING_COLUMN, "fold")
+    return manifest, dev.select(BUILDING_COLUMN, "repeat", "seed", "fold")
 
 
 def _validate_prepared_building_coverage(
@@ -560,35 +553,31 @@ def _prepare_run_data(
     manifest, development_assignments = _load_manifest(split_path)
     _validate_prepared_building_coverage(train_path, manifest)
     target_name = str(config["target"])
+    first_assignments = development_assignments.filter(pl.col("repeat") == 0).select(
+        BUILDING_COLUMN, "fold"
+    )
 
     if mode == "full":
         rows = _load_rows_for_buildings(
             train_path,
-            development_assignments.get_column(BUILDING_COLUMN).to_list(),
-            development_assignments,
+            first_assignments.get_column(BUILDING_COLUMN).to_list(),
+            first_assignments,
             feature_names,
             target_name,
         )
         validate_baseline_training_frame(rows, config)
         rows = _with_canonical_row_index(rows)
-        folds: list[FoldData] = []
-        for fold_id in EXPECTED_FOLD_IDS:
-            validation = rows.filter(pl.col("fold") == fold_id)
-            train = rows.filter(pl.col("fold") != fold_id)
-            _validate_outer_fold(train, validation, fold_id, target_name)
-            folds.append(FoldData(fold_id, train, validation))
-        if sum(fold.validation.height for fold in folds) != rows.height:
-            raise ValueError("Persisted folds do not cover every development row exactly once")
         return PreparedRunData(
             feature_names,
             rows,
-            tuple(folds),
-            "all development buildings across four persisted folds",
+            (),
+            "all development buildings across four persisted folds and three repeats",
             False,
+            development_assignments,
         )
 
     support = _collect_development_support(
-        train_path, development_assignments, target_name
+        train_path, first_assignments, target_name
     )
     selection = _select_smoke_groups(support, max_buildings)
     if selection is None:
@@ -614,7 +603,7 @@ def _prepare_run_data(
     rows = _load_rows_for_buildings(
         train_path,
         selected_groups,
-        development_assignments,
+        first_assignments,
         feature_names,
         target_name,
     )
@@ -719,128 +708,137 @@ def _expected_rows(
     )
 
 
+def _iter_folds(run_data: PreparedRunData, target_name: str) -> Iterator[FoldData]:
+    """Materialize only the current fold pair, never twelve pairs."""
+    if run_data.development_assignments is None:
+        yield from run_data.folds
+        return
+    for repeat, seed in enumerate(SPLIT_SEEDS):
+        assignments = run_data.development_assignments.filter(pl.col("repeat") == repeat)
+        for fold_id in EXPECTED_FOLD_IDS:
+            validation_ids = assignments.filter(pl.col("fold") == fold_id)[BUILDING_COLUMN]
+            validation = run_data.oof_population.filter(pl.col(BUILDING_COLUMN).is_in(validation_ids.implode())).with_columns(pl.lit(fold_id).cast(pl.Int64).alias("fold"))
+            training = run_data.oof_population.filter(~pl.col(BUILDING_COLUMN).is_in(validation_ids.implode())).drop("fold").join(assignments.select(BUILDING_COLUMN, "fold"), on=BUILDING_COLUMN)
+            _validate_outer_fold(training, validation, fold_id, target_name)
+            yield FoldData(fold_id, training, validation, repeat, seed)
+            del training, validation
+
+
+def _expected_rows_by_repeat(run_data, target_name, run_id, hashes):
+    if run_data.development_assignments is None:
+        yield 0, _expected_rows(run_data.oof_population, target_name, run_id, hashes).with_columns(
+            pl.lit(42).alias("split_seed"))
+        return
+    for repeat, seed in enumerate(SPLIT_SEEDS):
+        assignments = run_data.development_assignments.filter(pl.col("repeat") == repeat)
+        population = run_data.oof_population.select("row_index", BUILDING_COLUMN, TIMESTAMP_COLUMN,
+            target_name).join(assignments.select(BUILDING_COLUMN, "fold"), on=BUILDING_COLUMN)
+        yield repeat, _expected_rows(population, target_name, run_id, hashes).with_columns(
+            pl.lit(seed).alias("split_seed"))
+        del population
+
+
+def _write_prediction_blocks(
+    path: Path,
+    blocks: Iterable[tuple[pl.DataFrame, np.ndarray, Mapping[str, Any]]],
+    *,
+    target_name: str,
+    batch_size: int = OOF_BATCH_SIZE,
+) -> None:
+    """Write lossless column-wise blocks through one open canonical writer."""
+    partial = path.with_suffix(path.suffix + ".partial")
+    writer = None
+    try:
+        for keys, predictions, metadata in blocks:
+            if keys.height != len(predictions):
+                raise ValueError("Prediction/key alignment mismatch")
+            for offset in range(0, keys.height, batch_size):
+                frame = keys.slice(offset, batch_size).rename({target_name: "target"}).with_columns(
+                    pl.Series("prediction", predictions[offset:offset + batch_size], dtype=pl.Float64),
+                    *(pl.lit(value).alias(name) for name, value in metadata.items()),
+                ).with_columns(pl.col("repeat", "fold").cast(pl.Int64), pl.col("target").cast(pl.Int64))
+                table = frame.to_arrow()
+                if writer is None:
+                    writer = pq.ParquetWriter(partial, table.schema, compression="zstd")
+                writer.write_table(table, row_group_size=batch_size)
+                del table, frame
+        if writer is None:
+            raise ValueError("No development OOF predictions were generated")
+    finally:
+        if writer is not None:
+            writer.close()
+    partial.replace(path)
+
+
 def _run_candidate_fits(
     config: Mapping[str, Any],
     run_data: PreparedRunData,
     hashes: Mapping[str, str],
     run_id: str,
     mode: str,
-) -> tuple[pl.DataFrame, dict[str, list[dict[str, Any]]], dict[str, float]]:
+    oof_path: Path,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, float]]:
     target_name = str(config["target"])
     candidate_configs = config["models"]
-    oof_records: list[dict[str, Any]] = []
     fold_metrics: dict[str, list[dict[str, Any]]] = {
         candidate_id: [] for candidate_id in candidate_configs
     }
     candidate_wall_times = {candidate_id: 0.0 for candidate_id in candidate_configs}
 
-    for fold in run_data.folds:
-        _validate_outer_fold(fold.train, fold.validation, fold.fold_id, target_name)
-        x_train = fold.train.select(run_data.feature_names).to_pandas()
-        y_train = fold.train.get_column(target_name).to_numpy()
-        x_validation = fold.validation.select(run_data.feature_names).to_pandas()
-        y_validation = fold.validation.get_column(target_name).to_numpy()
-
-        fresh_estimators = build_baseline_estimators(config)
-        for candidate_id, candidate_config in candidate_configs.items():
-            estimator = fresh_estimators[candidate_id]
-            fit_started = time.perf_counter()
-            estimator.fit(x_train, y_train)
-            predictions = positive_class_scores(
-                estimator, x_validation, positive_label=1
-            )
-            metrics = evaluate_binary_metrics(y_validation, predictions)
-            candidate_wall_times[candidate_id] += time.perf_counter() - fit_started
-            fold_metrics[candidate_id].append(
-                {
-                    "fold": fold.fold_id,
-                    "train_building_count": fold.train.get_column(
-                        BUILDING_COLUMN
-                    ).n_unique(),
-                    "validation_building_count": fold.validation.get_column(
-                        BUILDING_COLUMN
-                    ).n_unique(),
-                    "train_row_count": fold.train.height,
-                    "validation_row_count": fold.validation.height,
+    def prediction_blocks():
+        for fold in _iter_folds(run_data, target_name):
+            x_train = fold.train.select(run_data.feature_names).to_pandas()
+            y_train = fold.train.get_column(target_name).to_numpy()
+            x_validation = fold.validation.select(run_data.feature_names).to_pandas()
+            y_validation = fold.validation.get_column(target_name).to_numpy()
+            for candidate_id, candidate_config in candidate_configs.items():
+                estimator = build_baseline_estimators(config)[candidate_id]
+                fit_started = time.perf_counter()
+                estimator.fit(x_train, y_train)
+                predictions = positive_class_scores(estimator, x_validation, positive_label=1)
+                metrics = evaluate_binary_metrics(y_validation, predictions)
+                candidate_wall_times[candidate_id] += time.perf_counter() - fit_started
+                fold_metrics[candidate_id].append({
+                    "repeat": fold.repeat, "split_seed": fold.split_seed, "fold": fold.fold_id,
+                    "train_building_count": fold.train[BUILDING_COLUMN].n_unique(),
+                    "validation_building_count": fold.validation[BUILDING_COLUMN].n_unique(),
+                    "train_row_count": fold.train.height, "validation_row_count": fold.validation.height,
                     **metrics,
+                })
+                keys = fold.validation.select("row_index", BUILDING_COLUMN, TIMESTAMP_COLUMN,
+                                              "fold", target_name)
+                yield keys, predictions, {
+                    "candidate_id": candidate_id,
+                    **{name: candidate_config[name] for name in ("recipe_id", "model_family", "model_config_id")},
+                    "repeat": fold.repeat, "split_seed": fold.split_seed,
+                    **hashes, "run_id": run_id, "execution_mode": mode, "non_comparative": mode == "smoke",
                 }
-            )
-
-            model_family = candidate_config["model_family"]
-            recipe_id = candidate_config["recipe_id"]
-            model_config_id = candidate_config["model_config_id"]
-            key_columns = fold.validation.select(
-                "row_index",
-                BUILDING_COLUMN,
-                TIMESTAMP_COLUMN,
-                "fold",
-                target_name,
-            ).iter_rows(named=True)
-            for row, prediction in zip(key_columns, predictions, strict=True):
-                oof_records.append(
-                    {
-                        "candidate_id": candidate_id,
-                        "recipe_id": recipe_id,
-                        "model_family": model_family,
-                        "model_config_id": model_config_id,
-                        "row_index": row["row_index"],
-                        "repeat": 0,
-                        "fold": row["fold"],
-                        BUILDING_COLUMN: row[BUILDING_COLUMN],
-                        TIMESTAMP_COLUMN: row[TIMESTAMP_COLUMN],
-                        "prediction": float(prediction),
-                        "target": int(row[target_name]),
-                        "split_sha256": hashes["split_sha256"],
-                        "data_sha256": hashes["data_sha256"],
-                        "config_sha256": hashes["config_sha256"],
-                        "run_id": run_id,
-                        "execution_mode": mode,
-                        "non_comparative": mode == "smoke",
-                    }
-                )
-
-    if not oof_records:
-        raise ValueError("No development OOF predictions were generated")
-    return pl.DataFrame(oof_records), fold_metrics, candidate_wall_times
+                del estimator, predictions, keys
+            del x_train, y_train, x_validation, y_validation, fold
+    _write_prediction_blocks(oof_path, prediction_blocks(), target_name=target_name)
+    return fold_metrics, candidate_wall_times
 
 
 def _build_metrics_payload(
-    oof: pl.DataFrame,
-    expected_rows: pl.DataFrame,
+    validated: dict,
     fold_metrics: Mapping[str, list[dict[str, Any]]],
     candidate_wall_times: Mapping[str, float],
     run_data: PreparedRunData,
     config: Mapping[str, Any],
     mode: str,
+    run_id: str,
 ) -> dict[str, Any]:
-    validated_metrics = validate_oof_artifact(oof, expected_rows)
     candidates: dict[str, Any] = {}
     for candidate_id in config["models"]:
-        candidate_oof = oof.filter(pl.col("candidate_id") == candidate_id)
-        pooled = evaluate_binary_metrics(
-            candidate_oof.get_column("target").to_numpy(),
-            candidate_oof.get_column("prediction").cast(pl.Float64).to_numpy(),
-        )
-        for metric_name in METRIC_NAMES:
-            if not np.isclose(
-                pooled[metric_name],
-                validated_metrics[candidate_id][metric_name],
-                rtol=0.0,
-                atol=1e-12,
-            ):
-                raise ValueError(
-                    f"Pooled {metric_name} does not match OOF validator for "
-                    f"{candidate_id!r}"
-                )
         candidates[candidate_id] = {
+            **validated["candidate_metrics"][candidate_id],
             "folds": fold_metrics[candidate_id],
-            "pooled": pooled,
             "wall_time_seconds": candidate_wall_times[candidate_id],
         }
 
     non_comparative = mode == "smoke"
     return {
-        "run_id": oof.get_column("run_id")[0],
+        "run_id": run_id,
         "mode": mode,
         "non_comparative": non_comparative,
         "data_scope": run_data.data_scope,
@@ -849,8 +847,10 @@ def _build_metrics_payload(
         "positive_label": config["positive_label"],
         "primary_metric": config["primary_metric"],
         "guardrails": list(config["guardrails"]),
-        "fold_ids": [fold.fold_id for fold in run_data.folds],
-        "development_oof_row_count": expected_rows.height,
+        "fold_ids": sorted({row["fold"] for row in validated["fold_metrics"]}),
+        **{name: validated[name] for name in ("repeat_count", "repeat_ids", "split_seeds",
+           "development_oof_row_count", "oof_record_count", "repeat_metrics", "fold_metrics")},
+        "metric_aggregation": "equal_mean_of_repeat_pooled_metrics",
         "candidate_metrics": candidates,
     }
 
@@ -1002,41 +1002,38 @@ def _run(args: argparse.Namespace) -> int:
             config,
             feature_names,
         )
-        run_id, run_dir = _create_run_directory(output_root)
+        guarded_run_dir = getattr(args, "guarded_run_dir", None)
+        if guarded_run_dir is None:
+            run_id, run_dir = _create_run_directory(output_root)
+        else:
+            run_dir = _ensure_within_outputs(Path(guarded_run_dir), output_root)
+            run_id = run_dir.name
         _write_json(
             run_dir / "run_status.json",
             {"run_id": run_id, "status": "in_progress"},
         )
         (run_dir / "baselines.yaml").write_bytes(config_bytes)
 
-        oof, fold_metrics, candidate_wall_times = _run_candidate_fits(
-            config, run_data, hashes, run_id, mode
-        )
-        expected_rows = _expected_rows(
-            run_data.oof_population, str(config["target"]), run_id, hashes
-        )
-        pooled_metrics = validate_oof_artifact(oof, expected_rows)
-        expected_fold_ids = set(expected_rows.get_column("fold").unique().to_list())
-        if args.full and expected_fold_ids != set(EXPECTED_FOLD_IDS):
-            raise ValueError("Full OOF must cover all four persisted development folds")
-        if args.smoke and len(expected_fold_ids) != 1:
-            raise ValueError("Smoke OOF must use exactly one persisted development fold")
-
         oof_path = run_dir / "oof_predictions.parquet"
-        oof.write_parquet(oof_path)
-        reloaded_oof = pl.read_parquet(oof_path)
-        reloaded_metrics = validate_oof_artifact(reloaded_oof, expected_rows)
-        if reloaded_metrics != pooled_metrics:
-            raise ValueError("Reloaded OOF pooled metrics differ from pre-write validation")
+        fold_metrics, candidate_wall_times = _run_candidate_fits(
+            config, run_data, hashes, run_id, mode, oof_path
+        )
+        validated = validate_oof_parquet(
+            oof_path, _expected_rows_by_repeat(run_data, str(config["target"]), run_id, hashes),
+            expected_candidate_ids=tuple(config["models"]), execution_mode=mode,
+            candidate_metadata=config["models"],
+        )
+        if args.full and (validated["repeat_ids"] != [0, 1, 2] or len(validated["fold_metrics"]) != 36):
+            raise ValueError("Full OOF must cover all twelve repeat/fold arms for three candidates")
 
         metrics_payload = _build_metrics_payload(
-            reloaded_oof,
-            expected_rows,
+            validated,
             fold_metrics,
             candidate_wall_times,
             run_data,
             config,
             mode,
+            run_id,
         )
         metrics_path = run_dir / "metrics.json"
         _write_json(metrics_path, metrics_payload)
@@ -1053,8 +1050,11 @@ def _run(args: argparse.Namespace) -> int:
         "python_traced_peak_memory_mb": round(peak_memory / (1024 * 1024), 3),
         "process_peak_rss_mb": _process_peak_rss_mb(),
         "candidate_fit_wall_time_seconds": candidate_wall_times,
-        "model_fit_count": len(run_data.folds) * len(config["models"]),
-        "fold_ids": [fold.fold_id for fold in run_data.folds],
+        "model_fit_count": sum(len(rows) for rows in fold_metrics.values()),
+        "fold_ids": metrics_payload["fold_ids"],
+        "repeat_ids": validated["repeat_ids"],
+        "repeat_count": validated["repeat_count"],
+        "split_seeds": validated["split_seeds"],
         "memory_note": (
             "Python-traced memory excludes some native-library allocations; process peak RSS "
             "is included when the platform exposes resource.getrusage."
@@ -1067,6 +1067,12 @@ def _run(args: argparse.Namespace) -> int:
         ),
         encoding="utf-8",
     )
+    for candidate_id, candidate_config in config["models"].items():
+        candidate_card_config = {**config, "models": {candidate_id: candidate_config}}
+        (run_dir / f"model_card_{candidate_id}.md").write_text(
+            _model_card(run_id, mode, run_data, feature_names, hashes, candidate_card_config),
+            encoding="utf-8",
+        )
 
     oof_relative_path = oof_path.relative_to(project_root).as_posix()
     inventory_records = []
@@ -1103,10 +1109,10 @@ def _run(args: argparse.Namespace) -> int:
     inventory_path = output_root / "runs" / "experiment_inventory.jsonl"
     _ensure_within_outputs(inventory_path, output_root)
     append_inventory_records(inventory_path, inventory_records)
-    _write_json(
-        run_dir / "run_status.json",
-        {"run_id": run_id, "status": "completed"},
-    )
+    if guarded_run_dir is not None:
+        _write_json(run_dir / "run_status.json", {"run_id": run_id, "status": "awaiting_guard"})
+        return 0
+    _write_json(run_dir / "run_status.json", {"run_id": run_id, "status": "completed"})
     print(
         f"Completed {mode} run {run_id}: {run_dir}; "
         f"OOF rows={metrics_payload['development_oof_row_count']}, "
@@ -1119,7 +1125,22 @@ def main(argv: list[str] | None = None) -> int:
     """Run a config-driven baseline OOF experiment after explicit mode selection."""
     args = parse_args(argv)
     try:
-        return _run(args)
+        root = args.project_root.resolve() if args.project_root else Path(__file__).resolve().parents[1]
+        config = yaml.safe_load(_resolve_path(args.config, root).read_bytes())
+        _validate_execution_config(config)
+        budget = load_baseline_budget(_resolve_path(args.budget, root), config)
+        run_id, run_dir = _create_run_directory(_safe_output_root(root))
+        args.guarded_run_dir = run_dir
+        _write_json(run_dir / "run_status.json", {"run_id": run_id, "status": "in_progress"})
+        _write_json(run_dir / "baseline_execution_budget.json", budget)
+        exit_code = run_guarded(_run, args, run_dir, budget)
+        if exit_code:
+            return exit_code
+        if json.loads((run_dir / "run_status.json").read_text())["status"] != "awaiting_guard":
+            raise ValueError("Worker did not finish the baseline artifact set")
+        _write_json(run_dir / "run_status.json", {"run_id": run_id, "status": "completed"})
+        print(f"Completed guarded {'smoke' if args.smoke else 'full'} run {run_id}: {run_dir}")
+        return 0
     except Exception as error:  # noqa: BLE001
         print(f"Training run failed: {error}", file=sys.stderr)
         return 1

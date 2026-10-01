@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+from collections.abc import Iterable, Sequence
+from pathlib import Path
+
 import numpy as np
 import polars as pl
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 
 from project.models.metrics import evaluate_binary_metrics
 
@@ -65,10 +72,13 @@ _METRIC_NAMES = ("roc_auc", "average_precision", "log_loss", "brier_score")
 def validate_oof_artifact(
     oof: pl.DataFrame,
     expected_rows: pl.DataFrame,
+    *,
+    expected_repeat: int = 0,
+    expected_candidate_ids: Sequence[str] | None = None,
 ) -> dict[str, dict[str, float]]:
     """Validate development-only OOF predictions and return pooled metrics.
 
-    Each candidate must have one repeat-0 prediction for every row in the
+    Each candidate must have one prediction in the specified repeat for every row in the
     expected development manifest. Natural keys and run metadata must agree
     with that manifest before pooled binary metrics are calculated.
     """
@@ -99,7 +109,13 @@ def validate_oof_artifact(
         raise ValueError("OOF artifact contains duplicate candidate row coverage")
 
     _validate_canonical_row_indices(expected_rows)
-    _validate_repeat_zero(oof)
+    if type(expected_repeat) is not int or oof["repeat"].unique().to_list() != [expected_repeat]:
+        raise ValueError(f"OOF artifact must contain exactly one repeat with repeat={expected_repeat}")
+    if "split_seed" in expected_rows:
+        _require_columns(oof, ("split_seed",), "OOF artifact")
+        _require_non_null_columns(oof, ("split_seed",), "OOF artifact")
+        if oof["split_seed"].unique().to_list() != expected_rows["split_seed"].unique().to_list():
+            raise ValueError("OOF split seed mismatch")
     _validate_run_metadata(oof, expected_rows)
 
     prediction_series = oof.get_column("prediction")
@@ -113,6 +129,8 @@ def validate_oof_artifact(
         raise ValueError("prediction scores must be within [0, 1]")
 
     candidate_ids = oof.get_column("candidate_id").unique().to_list()
+    if expected_candidate_ids is not None and set(candidate_ids) != set(expected_candidate_ids):
+        raise ValueError("Missing or unexpected candidate coverage")
     if any(
         not isinstance(candidate_id, str) or not candidate_id.strip()
         for candidate_id in candidate_ids
@@ -147,6 +165,156 @@ def validate_oof_artifact(
         }
 
     return results
+
+
+def validate_oof_parquet(
+    path: Path,
+    expected_rows_by_repeat: Iterable[tuple[int, pl.DataFrame]],
+    *,
+    expected_candidate_ids: Sequence[str],
+    execution_mode: str = "full",
+    candidate_metadata: dict | None = None,
+) -> dict:
+    """Validate actual records, materializing at most one candidate/repeat.
+
+    Summary scores are equal means of per-repeat pooled scores. Fold and repeat
+    spread are descriptive, not independent-sample confidence intervals.
+    """
+    parquet = pq.ParquetFile(path)
+    required = (*_OOF_REQUIRED_COLUMNS, "split_seed", "execution_mode", "non_comparative")
+    if set(required) - set(parquet.schema_arrow.names):
+        raise ValueError("OOF Parquet is missing required columns")
+    observed = set()
+    record_count = 0
+    # A bounded scan prevents unknown arms from disappearing behind filters.
+    for batch in parquet.iter_batches(batch_size=64_000, columns=[
+        "candidate_id", "repeat", "execution_mode", "non_comparative",
+    ]):
+        frame = pl.from_arrow(batch)
+        _require_non_null_columns(frame, tuple(frame.columns), "OOF artifact")
+        if frame["execution_mode"].unique().to_list() != [execution_mode] or frame["non_comparative"].unique().to_list() != [execution_mode == "smoke"]:
+            raise ValueError("OOF execution mode is incompatible")
+        observed.update(frame.select("candidate_id", "repeat").unique().iter_rows())
+        record_count += frame.height
+    dataset = ds.dataset(path, format="parquet")
+    repeat_rows, fold_rows = [], []
+    expected_arms = set()
+    population_size = None
+    repeat_ids = []
+    for repeat, expected in expected_rows_by_repeat:
+        if type(repeat) is not int or repeat in repeat_ids:
+            raise ValueError("Invalid or duplicate expected repeat")
+        repeat_ids.append(repeat)
+        if population_size is None:
+            population_size = expected.height
+        elif population_size != expected.height:
+            raise ValueError("Repeat populations differ")
+        for candidate in expected_candidate_ids:
+            expected_arms.add((candidate, repeat))
+            table = dataset.scanner(filter=(ds.field("repeat") == repeat) &
+                (ds.field("candidate_id") == candidate), batch_size=64_000).to_table()
+            part = pl.from_arrow(table)
+            del table
+            metrics = validate_oof_artifact(part, expected, expected_repeat=repeat,
+                                            expected_candidate_ids=(candidate,))[candidate]
+            if candidate_metadata is not None:
+                for name in _CANDIDATE_METADATA_COLUMNS:
+                    if part[name].unique().to_list() != [candidate_metadata[candidate][name]]:
+                        raise ValueError(f"OOF {candidate} {name} differs from frozen config")
+            split_seed = expected["split_seed"][0]
+            repeat_rows.append({"candidate_id": candidate, "repeat": repeat,
+                                "split_seed": split_seed, **metrics})
+            for fold in sorted(expected["fold"].unique().to_list()):
+                fold_part = part.filter(pl.col("fold") == fold)
+                values = evaluate_binary_metrics(fold_part["target"].to_numpy(),
+                                                  fold_part["prediction"].to_numpy())
+                fold_rows.append({"candidate_id": candidate, "repeat": repeat,
+                                  "split_seed": split_seed, "fold": fold,
+                                  **{name: float(values[name]) for name in _METRIC_NAMES}})
+                del fold_part
+            del part
+    if not repeat_ids or observed != expected_arms:
+        raise ValueError("OOF repeat/candidate coverage differs from expected manifest")
+    if record_count != population_size * len(expected_arms):
+        raise ValueError("OOF record coverage is incomplete")
+    candidates = {}
+    for candidate in expected_candidate_ids:
+        repeats = [row for row in repeat_rows if row["candidate_id"] == candidate]
+        folds = [row for row in fold_rows if row["candidate_id"] == candidate]
+        candidates[candidate] = {
+            "pooled": {name: float(np.mean([row[name] for row in repeats])) for name in _METRIC_NAMES},
+            "repeat_std": {name: float(np.std([row[name] for row in repeats], ddof=1))
+                           if len(repeats) > 1 else None for name in _METRIC_NAMES},
+            "repeats": repeats, "folds": folds,
+        }
+    return {"repeat_count": len(repeat_ids), "repeat_ids": repeat_ids,
+            "split_seeds": [next(row["split_seed"] for row in repeat_rows if row["repeat"] == r)
+                            for r in repeat_ids],
+            "development_oof_row_count": population_size, "oof_record_count": record_count,
+            "repeat_metrics": repeat_rows, "fold_metrics": fold_rows, "candidate_metrics": candidates}
+
+
+def load_repeated_manifest(path: Path) -> pl.DataFrame:
+    """Consume the gen7 artifact, never generate or repair split assignments."""
+    manifest = pl.read_parquet(path)
+    required = ("building_id", "repeat", "seed", "split", "fold")
+    _require_columns(manifest, required, "repeated manifest")
+    _require_non_null_columns(manifest, required[:-1], "repeated manifest")
+    if _has_duplicate_rows(manifest, ("repeat", "building_id")):
+        raise ValueError("Repeated manifest contains duplicate building/repeat keys")
+    if sorted(manifest["repeat"].unique().to_list()) != [0, 1, 2]:
+        raise ValueError("Expected repeats 0, 1, 2")
+    vault_ids, dev_ids, partitions = None, None, set()
+    for repeat, seed in enumerate((42, 43, 44)):
+        part = manifest.filter(pl.col("repeat") == repeat)
+        if part["seed"].unique().to_list() != [seed] or set(part["split"].unique()) != {"dev", "vault"}:
+            raise ValueError("Repeated split seed/scope mismatch")
+        dev, vault = part.filter(pl.col("split") == "dev"), part.filter(pl.col("split") == "vault")
+        if dev.height == 0 or vault.height == 0 or vault["fold"].null_count() != vault.height or dev["fold"].null_count():
+            raise ValueError("Expected development buildings with valid folds and vault buildings with null folds")
+        if dev.height == 160 and vault.height != 40:
+            raise ValueError("Expected frozen 160 development / 40 vault buildings")
+        current_vault, current_dev = set(vault["building_id"]), set(dev["building_id"])
+        if vault_ids is None:
+            vault_ids, dev_ids = current_vault, current_dev
+        elif current_vault != vault_ids or current_dev != dev_ids:
+            raise ValueError("Development/vault membership changed across repeats")
+        if sorted(dev["fold"].unique()) != [0, 1, 2, 3]:
+            raise ValueError("Expected four development folds")
+        partition = tuple(sorted(tuple(sorted(dev.filter(pl.col("fold") == f)["building_id"]))
+                                 for f in range(4)))
+        if dev.height > 4 and partition in partitions:
+            raise ValueError("Split repetitions are copied partitions or fold-label permutations")
+        partitions.add(partition)
+    metadata_path = path.with_name("split_metadata_repeated.json")
+    if metadata_path.exists():
+        metadata = json.loads(metadata_path.read_text())
+        digest = sha256_file(path)
+        if metadata.get("split_seeds") != [42, 43, 44] or metadata.get("repeats") != 3 or metadata.get("n_dev_folds") != 4 or metadata.get("artifacts", {}).get("building_folds_sha256") != digest:
+            raise ValueError("Repeated split metadata/hash mismatch")
+        vault_keys = metadata.get("vault_building_ids") or metadata.get("vault_ids") or ()
+        if set(vault_keys) != vault_ids:
+            raise ValueError("Repeated split metadata vault mismatch")
+        source = metadata.get("source_manifest")
+        if source:
+            root = path.parent.parent.parent.resolve()
+            source_path = (root / source["path"]).resolve()
+            if source_path.exists() and source_path.is_relative_to(root / "outputs"):
+                if sha256_file(source_path) != source["sha256"]:
+                    raise ValueError("Frozen source manifest hash mismatch")
+                original = pl.read_parquet(source_path)
+                if set(original.filter(pl.col("split") == "vault")["building_id"]) != vault_ids or set(original.filter(pl.col("split") == "dev")["building_id"]) != dev_ids:
+                    raise ValueError("Repeated manifest differs from frozen original vault/development")
+    return manifest
+
+
+def sha256_file(path: Path) -> str:
+    """Hash a persisted artifact without loading its bytes into memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _require_columns(

@@ -481,6 +481,10 @@ def test_run_success_writes_completed_status_and_artifacts(tmp_path: pathlib.Pat
     model_card_text = (run_dir / "model_card.md").read_text(encoding="utf-8")
     assert "run_status.json" in model_card_text
     assert "completed" in model_card_text
+    for candidate_id in ("dummy_prior", "logistic_l2", "hist_gradient_boosting"):
+        candidate_card = run_dir / f"model_card_{candidate_id}.md"
+        assert candidate_card.is_file()
+        assert f"`{candidate_id}`" in candidate_card.read_text(encoding="utf-8")
 
     # Verify exactly 3 inventory records reference this run_id
     inventory_path = runs_dir / "experiment_inventory.jsonl"
@@ -556,4 +560,3 @@ def test_run_inventory_failure_leaves_in_progress_status_sentinel(
     assert (run_dir / "metrics.json").is_file()
     assert (run_dir / "resource_profile.json").is_file()
     assert (run_dir / "model_card.md").is_file()
-
