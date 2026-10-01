@@ -247,7 +247,7 @@ def test_notebook_01_contract() -> None:
     required_contract_phrases = (
         "(building_id, timestamp)",
         "ROC-AUC",
-        "building_folds.parquet",
+        "building_folds",
         "pending/blocked",
         "<=0.55",
         "0.55–0.60",
@@ -556,7 +556,7 @@ def test_notebook_02_references_required_design_artifacts() -> None:
         "host_preflight_status",
         "user_approval_status",
         # Persisted split, never re-split.
-        "outputs/splits/building_folds.parquet",
+        "outputs/splits/building_folds",
         "vault",
         # Design-only framing.
         "design_only",

@@ -1,5 +1,5 @@
 # Frozen source vault; stratification and randomization operate on DEV only.
-source_manifest: outputs/splits/building_folds.parquet
+source_manifest: outputs/splits/building_folds_repeated.parquet
 prepared_train: outputs/prepared/train_joined.parquet
 output_dir: outputs/splits
 n_dev_folds: 4
