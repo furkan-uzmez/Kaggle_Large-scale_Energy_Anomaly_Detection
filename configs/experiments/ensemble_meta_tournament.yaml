@@ -1,0 +1,107 @@
+# Level-2 Meta-Learner Tournament Configuration
+# Combines 6 diverse base model out-of-fold predictions over the frozen
+# 4x3 building-grouped repeated cross-validation.
+
+schema_version: 1
+experiment_id: ensemble_meta_tournament
+description: >-
+  Level-2 Meta-Learner Tournament combining 6 diverse base model OOF predictions
+  (LightGBM, XGBoost, CatBoost, ExtraTrees, LightGBM Focal, Tabular MLP)
+  over the frozen 4x3 building-grouped repeated cross-validation without cross-repeat leakage.
+
+seed: 42
+repeats: [0, 1, 2]
+folds: [0, 1, 2, 3]
+split_seeds:
+  "0": 42
+  "1": 43
+  "2": 44
+
+split_manifest: outputs/splits/building_folds_repeated.parquet
+data_path: outputs/prepared/train_joined.parquet
+
+target: anomaly
+positive_label: 1
+score_kind: positive_probability
+
+primary_metric: roc_auc
+guardrails:
+  - average_precision
+  - log_loss
+  - brier_score
+
+base_candidates:
+  - name: lightgbm_challenger
+    path: outputs/models/gbdt_standalone/full/gbdt_lightgbm_full_a5bc574c/lightgbm_candidate_oof.parquet
+    arm_id: challenger
+  - name: xgboost_control
+    path: outputs/models/gbdt_standalone/full/gbdt_xgboost_full_002139ec/xgboost_candidate_oof.parquet
+    arm_id: control
+  - name: catboost_control
+    path: outputs/models/gbdt_standalone/full/gbdt_catboost_full_5e28c41b/catboost_candidate_oof.parquet
+    arm_id: control
+  - name: extratrees_natural
+    path: outputs/models/synthetic_sampling/full/extratrees_natural_synthetic_sampling_extratrees_natural_full_5ccca05f/extratrees_natural_candidate_oof.parquet
+    arm_id: natural
+  - name: lightgbm_focal
+    path: outputs/models/gbdt_loss_objectives/full/lightgbm_focal_gbdt_loss_lightgbm_focal_full_eaab7db4/lightgbm_focal_candidate_oof.parquet
+    arm_id: focal
+  - name: mlp_control
+    path: outputs/models/tabular_mlp/full/mlp_full_56295c03/mlp_control_candidate_oof.parquet
+    arm_id: control
+
+meta_arms:
+  control:
+    recipe_id: recipe_meta_control
+    model_family: ensemble_meta
+    model_config_id: cfg_meta_caruana_greedy
+    algorithm: caruana_greedy
+    params:
+      n_iterations: 50
+      subsample_size: 100000
+      random_state: 42
+
+  challenger_lr:
+    recipe_id: recipe_meta_challenger_lr
+    model_family: ensemble_meta
+    model_config_id: cfg_meta_logistic_regression
+    algorithm: logistic_regression_logits
+    params:
+      C: 1.0
+      clip_eps: 1.0e-7
+      standardize: true
+      max_iter: 1000
+      random_state: 42
+
+  challenger_nnls:
+    recipe_id: recipe_meta_challenger_nnls
+    model_family: ensemble_meta
+    model_config_id: cfg_meta_nnls
+    algorithm: nnls
+    params:
+      normalize_weights: true
+
+  challenger_auc:
+    recipe_id: recipe_meta_challenger_auc
+    model_family: ensemble_meta
+    model_config_id: cfg_meta_direct_auc
+    algorithm: direct_auc_optimizer
+    params:
+      method: Nelder-Mead
+      max_iter: 100
+      subsample_size: 100000
+      random_state: 42
+
+  challenger_shallow_lgb:
+    recipe_id: recipe_meta_challenger_shallow_lgb
+    model_family: ensemble_meta
+    model_config_id: cfg_meta_shallow_lightgbm
+    algorithm: shallow_lightgbm
+    params:
+      max_depth: 2
+      num_leaves: 3
+      learning_rate: 0.03
+      min_child_samples: 100
+      n_estimators: 50
+      random_state: 42
+      n_jobs: 4

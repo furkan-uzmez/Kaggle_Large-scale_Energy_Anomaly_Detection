@@ -1,0 +1,57 @@
+# Standard full-stack AutoGluon TabularPredictor experiment (no execution grant).
+experiment_id: model_autogluon_full_stack
+description: >-
+  Full-stack AutoGluon (LightGBM, CatBoost, XGBoost, NeuralNetTorch,
+  RandomForest, ExtraTrees + weighted ensemble) on the frozen 4x3 outer folds.
+
+model_family: autogluon
+problem_type: binary
+eval_metric: roc_auc
+label: anomaly
+seed: 42
+
+# Search budget (seconds) per outer fold; smoke mode uses smoke_time_limit.
+time_limit_per_fold: 600
+smoke_time_limit: 20
+presets: medium_quality
+fit_weighted_ensemble: true
+
+# Memory guard (GiB) passed to AutoGluon; must not be null.
+memory_limit_gb: 14
+# "auto" uses available CUDA devices for NN_TORCH/XGB/CAT/GBM; 0 forces CPU.
+num_gpus: 1
+
+models_included:
+  - GBM
+  - CAT
+  - XGB
+  - NN_TORCH
+  - RF
+  - XT
+
+# Per-family overrides merged over the seeded defaults.
+hyperparameters:
+  GBM: {}
+  CAT: {}
+  XGB: {}
+  NN_TORCH: {}
+  RF: {}
+  XT: {}
+
+splits:
+  path: outputs/splits/building_folds_repeated.parquet
+  repeats: [0, 1, 2]
+  folds: [0, 1, 2, 3]
+
+data:
+  features_path: outputs/prepared/train_joined.parquet
+  feature_pool:
+    - meter_reading
+    - square_feet
+    - year_built
+    - floor_count
+    - hour
+    - weekday
+    - month
+    - year
+    - primary_use

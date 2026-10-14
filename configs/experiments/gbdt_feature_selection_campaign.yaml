@@ -1,0 +1,247 @@
+# GBDT Feature Selection Campaign Configuration
+# Compares Passthrough (Control: all 33 verified predictors) vs. Selected (Challenger: Top 30 fold-local features)
+# across LightGBM, CatBoost, and XGBoost on the frozen 4x3 repeated split manifest.
+
+schema_version: 1
+seed: 42
+folds: 4
+repeats: 3
+split_seeds: [42, 43, 44]
+split_manifest: outputs/splits/building_folds_repeated.parquet
+data_path: outputs/prepared/train_joined.parquet
+
+target: anomaly
+positive_label: 1
+k: 30
+
+regimes:
+  - passthrough
+  - selected
+
+primary_metric: roc_auc
+guardrails:
+  - average_precision
+  - log_loss
+  - brier_score
+
+# All 57 schema columns present in outputs/prepared/train_joined.parquet
+available_columns:
+  - building_id
+  - timestamp
+  - meter_reading
+  - anomaly
+  - site_id
+  - primary_use
+  - square_feet
+  - year_built
+  - floor_count
+  - air_temperature
+  - cloud_coverage
+  - dew_temperature
+  - precip_depth_1_hr
+  - sea_level_pressure
+  - wind_direction
+  - wind_speed
+  - air_temperature_mean_lag7
+  - air_temperature_max_lag7
+  - air_temperature_min_lag7
+  - air_temperature_std_lag7
+  - air_temperature_mean_lag73
+  - air_temperature_max_lag73
+  - air_temperature_min_lag73
+  - air_temperature_std_lag73
+  - hour
+  - weekday
+  - month
+  - year
+  - weekday_hour
+  - hour_x
+  - hour_y
+  - month_x
+  - month_y
+  - weekday_x
+  - weekday_y
+  - building_weekday_hour
+  - building_weekday
+  - building_month
+  - building_hour
+  - building_meter
+  - is_holiday
+  - gte_hour
+  - gte_weekday
+  - gte_month
+  - gte_building_id
+  - gte_primary_use
+  - gte_site_id
+  - gte_meter
+  - gte_meter_hour
+  - gte_meter_weekday
+  - gte_meter_month
+  - gte_meter_building_id
+  - gte_meter_primary_use
+  - gte_meter_site_id
+  - gte_meter_building_id_hour
+  - gte_meter_building_id_weekday
+  - gte_meter_building_id_month
+
+features:
+  metadata:
+    - building_id
+    - timestamp
+  target:
+    - anomaly
+  excluded_forbidden:
+    # Explicitly rejected columns: unverified gte family, IDs, and target/metadata
+    - site_id
+    - building_id
+    - timestamp
+    - anomaly
+    - gte_hour
+    - gte_weekday
+    - gte_month
+    - gte_building_id
+    - gte_primary_use
+    - gte_site_id
+    - gte_meter
+    - gte_meter_hour
+    - gte_meter_weekday
+    - gte_meter_month
+    - gte_meter_building_id
+    - gte_meter_primary_use
+    - gte_site_id
+    - gte_meter_site_id
+    - gte_meter_building_id_hour
+    - gte_meter_building_id_weekday
+    - gte_meter_building_id_month
+  numeric:
+    # Core numeric
+    - meter_reading
+    - square_feet
+    - year_built
+    - floor_count
+    # Calendar & cyclic
+    - hour
+    - weekday
+    - month
+    - year
+    - hour_x
+    - hour_y
+    - month_x
+    - month_y
+    - weekday_x
+    - weekday_y
+    - is_holiday
+    # Weather sensors
+    - air_temperature
+    - cloud_coverage
+    - dew_temperature
+    - precip_depth_1_hr
+    - sea_level_pressure
+    - wind_direction
+    - wind_speed
+    # Weather lags
+    - air_temperature_mean_lag7
+    - air_temperature_max_lag7
+    - air_temperature_min_lag7
+    - air_temperature_std_lag7
+    - air_temperature_mean_lag73
+    - air_temperature_max_lag73
+    - air_temperature_min_lag73
+    - air_temperature_std_lag73
+    # Safe interactions (building_hour and building_meter removed: large_string building proxies)
+  categorical:
+    # Core categorical
+    - primary_use
+  predictors:
+    # Core
+    - meter_reading
+    - square_feet
+    - year_built
+    - floor_count
+    - primary_use
+    # Calendar & cyclic
+    - hour
+    - weekday
+    - month
+    - year
+    - hour_x
+    - hour_y
+    - month_x
+    - month_y
+    - weekday_x
+    - weekday_y
+    - is_holiday
+    # Weather sensors
+    - air_temperature
+    - cloud_coverage
+    - dew_temperature
+    - precip_depth_1_hr
+    - sea_level_pressure
+    - wind_direction
+    - wind_speed
+    # Weather lags
+    - air_temperature_mean_lag7
+    - air_temperature_max_lag7
+    - air_temperature_min_lag7
+    - air_temperature_std_lag7
+    - air_temperature_mean_lag73
+    - air_temperature_max_lag73
+    - air_temperature_min_lag73
+    - air_temperature_std_lag73
+    # Safe interactions (building_hour and building_meter removed)
+models:
+  lightgbm:
+    model_family: lightgbm
+    recipe_id: recipe_gbdt_fs_lightgbm
+    model_config_id: cfg_gbdt_fs_lightgbm_default
+    params:
+      learning_rate: 0.03
+      n_estimators: 1000
+      num_leaves: 31
+      max_depth: -1
+      subsample: 0.8
+      subsample_freq: 1
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 1.0
+      min_child_samples: 20
+      seed: 42
+      n_jobs: 12
+      objective: binary
+      metric: binary_logloss
+
+  catboost:
+    model_family: catboost
+    recipe_id: recipe_gbdt_fs_catboost
+    model_config_id: cfg_gbdt_fs_catboost_default
+    params:
+      learning_rate: 0.03
+      iterations: 1000
+      depth: 6
+      l2_leaf_reg: 3.0
+      subsample: 0.8
+      random_seed: 42
+      thread_count: 12
+      task_type: GPU
+      loss_function: Logloss
+      eval_metric: Logloss
+      verbose: false
+
+  xgboost:
+    model_family: xgboost
+    recipe_id: recipe_gbdt_fs_xgboost
+    model_config_id: cfg_gbdt_fs_xgboost_default
+    params:
+      learning_rate: 0.03
+      n_estimators: 1000
+      max_depth: 6
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 1.0
+      min_child_weight: 1.0
+      seed: 42
+      n_jobs: 12
+      tree_method: hist
+      objective: "binary:logistic"
+      eval_metric: logloss

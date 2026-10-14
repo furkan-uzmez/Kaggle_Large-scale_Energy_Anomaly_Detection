@@ -1,0 +1,102 @@
+# Standalone GBDT Challenger Models Configuration
+# Frozen contracts for LightGBM, CatBoost, and XGBoost out-of-fold evaluation.
+
+schema_version: 1
+seed: 42
+folds: 4
+repeats: 3
+split_seeds: [42, 43, 44]
+split_manifest: outputs/splits/building_folds_repeated.parquet
+data_path: outputs/prepared/train_joined.parquet
+
+target: anomaly
+positive_label: 1
+
+primary_metric: roc_auc
+guardrails:
+  - average_precision
+  - log_loss
+  - brier_score
+
+features:
+  numeric:
+    - meter_reading
+    - square_feet
+    - year_built
+    - floor_count
+    - hour
+    - weekday
+    - month
+    - year
+  categorical:
+    - primary_use
+
+arms:
+  - control
+  - challenger
+
+models:
+  lightgbm:
+    model_family: lightgbm
+    recipe_id: recipe_gbdt_lightgbm
+    model_config_id: cfg_gbdt_lightgbm_default
+    arms:
+      - control
+      - challenger
+    params:
+      learning_rate: 0.03
+      n_estimators: 1000
+      num_leaves: 31
+      max_depth: -1
+      subsample: 0.8
+      subsample_freq: 1
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 1.0
+      min_child_samples: 20
+      seed: 42
+      n_jobs: 12
+      objective: binary
+      metric: binary_logloss
+
+  catboost:
+    model_family: catboost
+    recipe_id: recipe_gbdt_catboost
+    model_config_id: cfg_gbdt_catboost_default
+    arms:
+      - control
+      - challenger
+    params:
+      learning_rate: 0.03
+      iterations: 1000
+      depth: 6
+      l2_leaf_reg: 3.0
+      subsample: 0.8
+      random_seed: 42
+      thread_count: 12
+      task_type: GPU
+      loss_function: Logloss
+      eval_metric: Logloss
+      verbose: false
+
+  xgboost:
+    model_family: xgboost
+    recipe_id: recipe_gbdt_xgboost
+    model_config_id: cfg_gbdt_xgboost_default
+    arms:
+      - control
+      - challenger
+    params:
+      learning_rate: 0.03
+      n_estimators: 1000
+      max_depth: 6
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 1.0
+      min_child_weight: 1.0
+      seed: 42
+      n_jobs: 12
+      tree_method: hist
+      objective: binary:logistic
+      eval_metric: logloss

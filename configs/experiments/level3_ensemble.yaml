@@ -1,0 +1,109 @@
+# Level-3 Meta-Ensemble Configuration
+# Combines:
+# - Arm A (Meta-2A): Probability-based Meta-Learner (using existing challenger_lr OOF)
+# - Arm B (Meta-2B): Representation-based Tree Leaf Embeddings (LightGBM leaf extractor -> OneHotEncoder -> sparse SGDClassifier log-loss)
+# - Level-3 Meta-Learner: Nested direct ROC-AUC bounded combination of Meta-2A and Meta-2B scores
+
+schema_version: 1
+experiment_id: level3_ensemble
+description: >-
+  Level-3 Meta-Ensemble combining Arm A (Probability-based Meta-2A from challenger_lr OOF)
+  and Arm B (Representation-based Meta-2B Tree Leaf Embeddings via LightGBM + OneHotEncoder + sparse SGDClassifier)
+  using nested direct ROC-AUC bounded optimization.
+
+seed: 42
+repeats: [0, 1, 2]
+folds: [0, 1, 2, 3]
+split_seeds:
+  "0": 42
+  "1": 43
+  "2": 44
+
+split_manifest: outputs/splits/building_folds_repeated.parquet
+data_path: outputs/prepared/train_joined.parquet
+test_data_path: outputs/prepared/test_joined.parquet
+sample_submission_path: data/energy-anomaly-detection/sample_submission.csv
+
+target: anomaly
+positive_label: 1
+score_kind: positive_probability
+
+primary_metric: roc_auc
+guardrails:
+  - average_precision
+  - log_loss
+  - brier_score
+
+features:
+  numeric:
+    - meter_reading
+    - square_feet
+    - year_built
+    - floor_count
+    - hour
+    - weekday
+    - month
+    - year
+    - hour_x
+    - hour_y
+    - month_x
+    - month_y
+    - weekday_x
+    - weekday_y
+    - is_holiday
+    - air_temperature
+    - cloud_coverage
+    - dew_temperature
+    - precip_depth_1_hr
+    - sea_level_pressure
+    - wind_direction
+    - wind_speed
+    - air_temperature_mean_lag7
+    - air_temperature_max_lag7
+    - air_temperature_min_lag7
+    - air_temperature_std_lag7
+    - air_temperature_mean_lag73
+    - air_temperature_max_lag73
+    - air_temperature_min_lag73
+    - air_temperature_std_lag73
+  categorical:
+    - primary_use
+
+meta_2a:
+  name: challenger_lr
+  oof_path: outputs/models/ensemble_meta/full/challenger_lr_ensemble_challenger_lr_full_b8b93fbc/challenger_lr_candidate_oof.parquet
+  test_submission_path: outputs/submissions/submission_01_ensemble_logit_lr_0.9008.csv
+
+meta_2b:
+  recipe_id: recipe_meta_2b_leaf_embedding
+  model_family: tree_leaf_embedding
+  model_config_id: cfg_meta_2b_lgb_sgd
+  lgb_params:
+    learning_rate: 0.05
+    n_estimators: 100
+    num_leaves: 31
+    max_depth: 6
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+    n_jobs: -1
+    verbosity: -1
+  encoder_params:
+    handle_unknown: ignore
+    sparse_output: true
+  linear_params:
+    loss: log_loss
+    penalty: l2
+    alpha: 0.0001
+    max_iter: 1000
+    tol: 0.001
+    random_state: 42
+
+level3:
+  recipe_id: recipe_level3_auc_combiner
+  model_family: level3_meta_ensemble
+  model_config_id: cfg_level3_auc_bounded
+  params:
+    grid_resolution: 101
+    subsample_size: 100000
+    random_state: 42
