@@ -72,7 +72,7 @@ def _json_sha256(obj: Any) -> str:
 
 def submit_to_kaggle(file_path: Path, message: str) -> bool:
     """Submit a validated CSV to Kaggle via the CLI."""
-    kaggle_bin = shutil.which("kaggle") or "/home/furkan/.local/bin/kaggle"
+    kaggle_bin = shutil.which("kaggle") or "kaggle"
     cmd = [
         str(kaggle_bin),
         "competitions",

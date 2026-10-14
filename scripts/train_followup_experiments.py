@@ -630,7 +630,7 @@ def run_followup_experiments(
             if kaggle_submit and not smoke and not dry_run:
                 msg = f"Kaggle LEAD Experiment: {exp_id} ({exp_spec.get('title', exp_id)})"
                 cmd = [
-                    "/home/furkan/.local/bin/kaggle",
+                    "kaggle",
                     "competitions",
                     "submit",
                     "-c",

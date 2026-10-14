@@ -1,11 +1,12 @@
 {
+  "publication_path_note": "Path labels were normalized for publication: the project root prefix is removed and the temporary run directory is shown as <smoke-run>. Historical measurements and hashes are retained unchanged. The referenced temporary artifacts are not bundled.",
   "TDD": {
     "green": "40 passed in 4.84s",
     "red": "declared 1399631 != actual synthetic 52"
   },
   "actual_model_fits": 2,
   "actual_selector_fits": 0,
-  "artifact_root": "/tmp/opencode/rbf-real-smoke-v2-942bdyac",
+  "artifact_root": "<smoke-run>",
   "artifact_sha256": {
     "fixture/configs/experiments/feature_campaign.yaml": "87c1e6eb0e978015d1c7384894d0198ed98f807cea7fe0d218ef902cfc19eefb",
     "fixture/docs/evidence/year_built_encoding_v1.json": "eddf12eac4a7d1f9c48b3abaf64ddf2d0acbd2953097194ebd4f951e558c580f",
@@ -77,7 +78,7 @@
   "full_scale_feasibility": "severe_unproven_no_ETA",
   "index_sha256": "bcc7353265f0762f9a4e0bebab9d479b4da7d1f564f317ec784063e02bf1e007",
   "instrumentation": "temporary Pipeline observer delegates original fit and decision_function, no substitute estimator or additional fit",
-  "interpreter": "/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/.venv/bin/python",
+  "interpreter": ".venv/bin/python",
   "journal_attempts": [
     {
       "artifact_directory": "attempts/96abca0b97d244149a17f5af6559c04f",
@@ -132,7 +133,7 @@
   "units": [
     {
       "attempt_id": "96abca0b97d244149a17f5af6559c04f",
-      "directory": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/96abca0b97d244149a17f5af6559c04f",
+      "directory": "<smoke-run>/run/attempts/96abca0b97d244149a17f5af6559c04f",
       "fit": {
         "classes": [
           0,
@@ -315,8 +316,8 @@
           "reason": null,
           "rss_limit_enforced": false,
           "status": "awaiting_validation",
-          "stderr_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/96abca0b97d244149a17f5af6559c04f/stderr.log",
-          "stdout_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/96abca0b97d244149a17f5af6559c04f/stdout.log",
+          "stderr_path": "<smoke-run>/run/attempts/96abca0b97d244149a17f5af6559c04f/stderr.log",
+          "stdout_path": "<smoke-run>/run/attempts/96abca0b97d244149a17f5af6559c04f/stdout.log",
           "unit": "dim_pca_vs_passthrough/control/r0/f1/model",
           "wall_limit_enforced": false
         },
@@ -331,7 +332,7 @@
     },
     {
       "attempt_id": "8e1b6dcbfd1343628aeeca8ad76c501a",
-      "directory": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a",
+      "directory": "<smoke-run>/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a",
       "fit": {
         "classes": [
           0,
@@ -575,8 +576,8 @@
           "reason": null,
           "rss_limit_enforced": false,
           "status": "awaiting_validation",
-          "stderr_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stderr.log",
-          "stdout_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stdout.log",
+          "stderr_path": "<smoke-run>/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stderr.log",
+          "stdout_path": "<smoke-run>/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stdout.log",
           "unit": "dim_pca_vs_passthrough/challenger/r0/f1/model",
           "wall_limit_enforced": false
         },

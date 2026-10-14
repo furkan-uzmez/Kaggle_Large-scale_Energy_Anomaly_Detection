@@ -1,6 +1,8 @@
 [project]
 name = "lead-anomaly"
 version = "0.1.0"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "furkan-uzmez", email = "furkan.n41@hotmail.com" }
 ]
@@ -21,7 +23,7 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

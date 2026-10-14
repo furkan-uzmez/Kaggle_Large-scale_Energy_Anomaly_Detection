@@ -48,7 +48,7 @@ logger = logging.getLogger("generate_final_6")
 def submit_to_kaggle(file_path: Path, message: str) -> bool:
     """Submit a validated CSV to Kaggle via the CLI."""
     cmd = [
-        "/home/furkan/.local/bin/kaggle",
+        "kaggle",
         "competitions",
         "submit",
         "-c",

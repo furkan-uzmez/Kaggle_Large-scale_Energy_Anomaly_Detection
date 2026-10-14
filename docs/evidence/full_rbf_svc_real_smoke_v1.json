@@ -1,6 +1,7 @@
 {
+  "publication_path_note": "Path labels were normalized for publication: the project root prefix is removed and the temporary run directory is shown as <smoke-run>. Historical measurements and hashes are retained unchanged. The referenced temporary artifacts are not bundled.",
   "actual_model_fits": 0,
-  "artifact_root": "/tmp/opencode/rbf-real-smoke-nxp73223",
+  "artifact_root": "<smoke-run>",
   "blocker": "index cardinality differs from authenticated development rows",
   "blocker_type": "ValueError",
   "capability_promoted": false,
@@ -22,11 +23,11 @@
     "threadpoolctl": "3.7.0"
   },
   "full_scale_feasibility": "severe_unproven_no_ETA",
-  "interpreter": "/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/.venv/bin/python",
+  "interpreter": ".venv/bin/python",
   "production_data_read": false,
   "python_version": "3.13.5",
   "source_freeze_verified": true,
   "status": "blocked",
-  "traceback": "Traceback (most recent call last):\n  File \"<stdin>\", line 27, in <module>\n  File \"/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/src/project/experiments/full_candidate_io.py\", line 118, in build_development_index\n    _verify_index_cardinality(connection, admitted_spec.development_rows)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/src/project/experiments/full_candidate_io.py\", line 682, in _verify_index_cardinality\n    raise ValueError(\"index cardinality differs from authenticated development rows\")\nValueError: index cardinality differs from authenticated development rows\n",
+  "traceback": "Traceback (most recent call last):\n  File \"<stdin>\", line 27, in <module>\n  File \"src/project/experiments/full_candidate_io.py\", line 118, in build_development_index\n    _verify_index_cardinality(connection, admitted_spec.development_rows)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"src/project/experiments/full_candidate_io.py\", line 682, in _verify_index_cardinality\n    raise ValueError(\"index cardinality differs from authenticated development rows\")\nValueError: index cardinality differs from authenticated development rows\n",
   "units": []
 }
