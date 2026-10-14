@@ -53,9 +53,9 @@ The command prints one JSON object and exits with status `0` when its `status` f
 | [`configs/`](configs) | Data contract (file hashes, schemas), split configs, resource budget, and experiment/campaign YAML under `configs/experiments/`. |
 | [`notebooks/`](notebooks) | Five numbered review notebooks (see below). |
 | [`tests/`](tests) | `unit/`, `integration/` and `notebooks/` pytest suites. |
-| [`docs/evidence/`](docs/evidence) | Committed audit/evidence records for selected campaign steps. |
+| [`docs/evidence/`](docs/evidence) | Three runtime-required records: construction-year encoding, approved AutoGluon profile, and the current development audit. |
 
-Some evidence and report files record machine-specific paths from the original runs. Where these have been replaced by neutral publication labels, the recorded content hashes were retained, so those paths are labels, not locations to recreate.
+These records are inputs to campaign admission and integrity checks, not optional execution logs. Keep their exact bytes: the code and reviewed configurations bind them by SHA-256. Superseded audits and historical smoke reports are not bundled.
 
 ## Getting the competition data
 
@@ -140,7 +140,7 @@ The base environment stays free of heavy model backends. Install them yourself i
 | Backend | Where the code expects it |
 | --- | --- |
 | LightGBM, XGBoost, CatBoost, PyTorch | Imported by the GBDT, MLP, and ensemble scripts. Not declared in `pyproject.toml`; add them to an environment of your choosing. |
-| AutoGluon | Separate Python 3.12 environment at `.venv-autogluon/`. Committed evidence in [`docs/evidence/autogluon_real_worker_smoke_v1.json`](docs/evidence/autogluon_real_worker_smoke_v1.json) records `autogluon.tabular` 1.4.0 on Python 3.12.12. The full-campaign code validates this fixed interpreter location. |
+| AutoGluon | Separate Python 3.12 environment at `.venv-autogluon/`, with AutoGluon 1.4.0. The full-campaign code validates this fixed interpreter location and the restricted profile in [`autogluon_full_profile_v1.json`](docs/evidence/autogluon_full_profile_v1.json). |
 | cuML RBF SVM (GPU) | Separate interpreter at `.venv_gpu_cuml/`, with cuML and CuPy and a visible GPU. Used by `src/project/features/gpu_svm_bridge.py`; set `DISABLE_GPU_SVM=1` to skip it. |
 
 These environments are git-ignored and are not reproduced by `uv.lock`.
