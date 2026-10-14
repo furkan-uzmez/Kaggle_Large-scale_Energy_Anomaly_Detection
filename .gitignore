@@ -2,11 +2,22 @@
 /data/
 /outputs/
 
+# Generated training state and downloaded third-party solutions
+/AutogluonModels/
+/catboost_info/
+/campaign.lock
+/downloads/
+
+# Local completion-signing authority; never version its private key
+/.full_campaign_completion_authority/
+
 # Generated duplicate notebook execution copies
 /notebooks/executed/
 
 # Python virtual environment and caches
 /.venv/
+/.venv-*/
+/.venv_*/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
@@ -16,6 +27,7 @@ __pycache__/
 *.egg-info/
 
 # Local agent, browser, and commit-planning state
+/AGENTS.md
 /.agent/skills/
 /.agent/ml-project-skill-router-report.json
 /.claude/napkin.md
