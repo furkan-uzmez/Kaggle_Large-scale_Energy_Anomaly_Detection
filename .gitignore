@@ -8,6 +8,10 @@
 /campaign.lock
 /downloads/
 
+# Local reference pages and implementation planning documents
+/kaggle_competation_pages/
+/docs/superpowers/
+
 # Local completion-signing authority; never version its private key
 /.full_campaign_completion_authority/
 
