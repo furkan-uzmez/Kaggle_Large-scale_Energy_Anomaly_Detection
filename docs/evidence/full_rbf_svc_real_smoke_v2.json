@@ -1,0 +1,595 @@
+{
+  "TDD": {
+    "green": "40 passed in 4.84s",
+    "red": "declared 1399631 != actual synthetic 52"
+  },
+  "actual_model_fits": 2,
+  "actual_selector_fits": 0,
+  "artifact_root": "/tmp/opencode/rbf-real-smoke-v2-942bdyac",
+  "artifact_sha256": {
+    "fixture/configs/experiments/feature_campaign.yaml": "87c1e6eb0e978015d1c7384894d0198ed98f807cea7fe0d218ef902cfc19eefb",
+    "fixture/docs/evidence/year_built_encoding_v1.json": "eddf12eac4a7d1f9c48b3abaf64ddf2d0acbd2953097194ebd4f951e558c580f",
+    "fixture/notebooks/02_baseline_and_candidate_design.ipynb": "c70f78417b64310eb625c48506b9cb8cf79a7fdf3fa252720a799b6a5d80e71e",
+    "fixture/outputs/prepared/train_joined.parquet": "6245396de926a25932876a6d7b2382a34f484aacc5db52698aae33319aa3af08",
+    "fixture/outputs/splits/building_folds_repeated.parquet": "fe6b0ada3498eff04f2bb8da3463ed1bec2f8a969cd684389feaf45ea01d8f58",
+    "fixture/src/project/features/registry.py": "98b7cae12da511b435e8d75952897c40ad60b20a089ac2b2540f9d4559c78679",
+    "fixture/test_joined.parquet": "bf8a216ec3ee8eb365944aceec29b85b53d724d2d2406dd7342138796f432fb7",
+    "rbf_observer.py": "85638b63ace578cd39367bfd98c4ce68f4b8f516403b0997d32ff9269dc2f69d",
+    "run/.full_fit.lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/ack-0001.json": "45eac06febf0031918bf1af8e4c030158b22e7d5c445e94adce462b1ccb666e8",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/ack-0002.json": "4aaffc1110c6b0c27ee09de4ee08fdda275dc05e8b26ea12c5a8341d249ae43c",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/actual-fit.json": "a3c79be3fd987284bb69041e7ae8000ea2ae56f42ef2f1afc97a3df263e0f37c",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/durable-debit.json": "36388a3567524814456cefdf7a86cc32eb6659541570f14c3c7676bd91043099",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/event-0001.json": "3573fdca03b677f535ed4cf2fd07a5b53f67e26bad590c67f5ecdd8a8f365f0f",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/event-0002.json": "1bb2f8bdefbe831a85682038f453adb75e05f80c2214660c7ef1c8b1d9f00a7e",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/shard.parquet": "983da9bfba19238ebc1c32c9100d9f9a9619bc5bdd45c1ab893f6a69e16cb624",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/startup-authorized.json": "bc6449b074b7ba95834be1e77fe5ee3eb88d7e38acf6b1649de12de04e87fb59",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/status_dim_pca_vs_passthrough_challenger_r0_f1_model.json": "05a31328bd6df4e30b6a5a9c25398ceb783e6f6fd4a02d44f73ed802c0ee9997",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/worker-identity.json": "52a8fa3bc139745ac9b34d33446cc0ed3c4f0a3a03217fafe45236c7ba095243",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/ack-0001.json": "6f61c3a14c85bd99672fe98a5f1fb17223a27aacbe756ff74d33821b6150cc9c",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/ack-0002.json": "1cb303058d089537376c02943abf7252edb0ae6d5529aeba7884ddeea0fd171d",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/actual-fit.json": "33b08cd08e60e406be5070074dce1cc4f003cabbeb11a887595b770fd55208bf",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/durable-debit.json": "311b21085fe05442d4f3d8353b7d430a9e4eeed5f81fd71d27259d7f63fc30c0",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/event-0001.json": "2672ac1cb7e69eb6328fbc3754422d1589f70bc0f95d9e279cf9709b23f1e041",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/event-0002.json": "156e6d5ca421d299b1dcdcdfd4aed70754546c79b65bf7e6aacf513468d6a88e",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/shard.parquet": "7f4b2c185e3d40d30158b7e5ec99f6c9d5ea52abad1dcdf04b2d4464f645ab18",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/startup-authorized.json": "097ec7639ccfb2bfc833a10f21a24f0d6d103555dac5711fe23113a859bfd4be",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/status_dim_pca_vs_passthrough_control_r0_f1_model.json": "3482627560be500809558ff3b8712dfb241c6392e48a73197ef28c0f1d2cebf5",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run/attempts/96abca0b97d244149a17f5af6559c04f/worker-identity.json": "8f14f15fb284e5cebecb4ade298e9958caf7e684857c0655d8d4dd60f9895c9d",
+    "run/full_fit.sqlite3": "868843a64eea154a5902b11ddb92be07fcc3dc8ee8f748e447429ca1ac525200",
+    "run/index.sqlite3": "bcc7353265f0762f9a4e0bebab9d479b4da7d1f564f317ec784063e02bf1e007",
+    "snapshot.json": "dfa231179517ad61538812febfec6d40249aaac560f136b8f0cc3f52d12a8b14"
+  },
+  "capability_promoted": false,
+  "environment": {
+    "MKL_NUM_THREADS": "unset",
+    "NUMEXPR_NUM_THREADS": "unset",
+    "OMP_NUM_THREADS": "unset",
+    "OPENBLAS_NUM_THREADS": "unset",
+    "POLARS_MAX_THREADS": "unset",
+    "PyYAML": "6.0.3",
+    "joblib": "1.6.0",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "polars": "1.44.2",
+    "pyarrow": "25.0.1",
+    "python": "3.13.5",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "threadpoolctl": "3.7.0"
+  },
+  "fixture_development_rows": 52,
+  "fixture_vault_rows": 4,
+  "frozen_protocol": {
+    "estimator_seed": 42,
+    "folds": 4,
+    "repeats": 3,
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "full_scale_feasibility": "severe_unproven_no_ETA",
+  "index_sha256": "bcc7353265f0762f9a4e0bebab9d479b4da7d1f564f317ec784063e02bf1e007",
+  "instrumentation": "temporary Pipeline observer delegates original fit and decision_function, no substitute estimator or additional fit",
+  "interpreter": "/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/.venv/bin/python",
+  "journal_attempts": [
+    {
+      "artifact_directory": "attempts/96abca0b97d244149a17f5af6559c04f",
+      "attempt_id": "96abca0b97d244149a17f5af6559c04f",
+      "evidence": [
+        {
+          "path": "attempts/96abca0b97d244149a17f5af6559c04f/shard.parquet",
+          "sha256": "7f4b2c185e3d40d30158b7e5ec99f6c9d5ea52abad1dcdf04b2d4464f645ab18"
+        },
+        {
+          "path": "attempts/96abca0b97d244149a17f5af6559c04f/actual-fit.json",
+          "sha256": "33b08cd08e60e406be5070074dce1cc4f003cabbeb11a887595b770fd55208bf"
+        },
+        {
+          "path": "attempts/96abca0b97d244149a17f5af6559c04f/durable-debit.json",
+          "sha256": "311b21085fe05442d4f3d8353b7d430a9e4eeed5f81fd71d27259d7f63fc30c0"
+        }
+      ],
+      "reason": null,
+      "selected_parameters": [],
+      "status": "completed",
+      "unit": "dim_pca_vs_passthrough/control/r0/f1/model"
+    },
+    {
+      "artifact_directory": "attempts/8e1b6dcbfd1343628aeeca8ad76c501a",
+      "attempt_id": "8e1b6dcbfd1343628aeeca8ad76c501a",
+      "evidence": [
+        {
+          "path": "attempts/8e1b6dcbfd1343628aeeca8ad76c501a/shard.parquet",
+          "sha256": "983da9bfba19238ebc1c32c9100d9f9a9619bc5bdd45c1ab893f6a69e16cb624"
+        },
+        {
+          "path": "attempts/8e1b6dcbfd1343628aeeca8ad76c501a/actual-fit.json",
+          "sha256": "a3c79be3fd987284bb69041e7ae8000ea2ae56f42ef2f1afc97a3df263e0f37c"
+        },
+        {
+          "path": "attempts/8e1b6dcbfd1343628aeeca8ad76c501a/durable-debit.json",
+          "sha256": "36388a3567524814456cefdf7a86cc32eb6659541570f14c3c7676bd91043099"
+        }
+      ],
+      "reason": null,
+      "selected_parameters": [],
+      "status": "completed",
+      "unit": "dim_pca_vs_passthrough/challenger/r0/f1/model"
+    }
+  ],
+  "planned_model_fits": 24,
+  "production_data_read": false,
+  "python_version": "3.13.5",
+  "spec_sha256": "48004f4c7271d3c38111bd41b504f67bd5274eeb95b6f19a0f4a9f6a75ee9fb1",
+  "status": "passed",
+  "units": [
+    {
+      "attempt_id": "96abca0b97d244149a17f5af6559c04f",
+      "directory": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/96abca0b97d244149a17f5af6559c04f",
+      "fit": {
+        "classes": [
+          0,
+          1
+        ],
+        "config_after": "7fd7e89692fecfecc749f61664f44d9a9b5b52d55c6209e1cbd77ee55c375b16",
+        "config_before": "7fd7e89692fecfecc749f61664f44d9a9b5b52d55c6209e1cbd77ee55c375b16",
+        "features": [
+          "meter_reading",
+          "square_feet",
+          "year_built",
+          "floor_count",
+          "hour",
+          "weekday",
+          "month",
+          "year",
+          "primary_use"
+        ],
+        "fit_calls": 1,
+        "fit_finished_ns": 1791225607232866097,
+        "fit_started_ns": 1791225607189874367,
+        "fit_status": 0,
+        "imputer_statistics": [
+          18.0,
+          1035.0,
+          100.0,
+          2.0,
+          3.0,
+          4.0,
+          4.0,
+          2024.0
+        ],
+        "margins": [
+          -0.8235975713497784,
+          -0.8704241641139134,
+          -0.933788088103133,
+          -0.9959729374599883,
+          -1.0409342362029683,
+          -0.8012829228782384,
+          -0.8276484328934526,
+          -0.8696784843185379,
+          -0.9161899565214241,
+          -0.9567281312686398,
+          -0.9862920493056164
+        ],
+        "model_params": {
+          "C": 1.0,
+          "break_ties": false,
+          "cache_size": 200,
+          "class_weight": null,
+          "coef0": 0.0,
+          "decision_function_shape": "ovr",
+          "degree": 3,
+          "gamma": "scale",
+          "kernel": "rbf",
+          "max_iter": -1,
+          "probability": "deprecated",
+          "random_state": 42,
+          "shrinking": true,
+          "tol": 0.001,
+          "verbose": false
+        },
+        "output_features": [
+          "numeric__meter_reading",
+          "numeric__square_feet",
+          "numeric__year_built",
+          "numeric__floor_count",
+          "numeric__hour",
+          "numeric__weekday",
+          "numeric__month",
+          "numeric__year",
+          "categorical__[\"primary_use\",\"Education\"]",
+          "categorical__[\"primary_use\",\"Healthcare\"]",
+          "categorical__[\"primary_use\",\"Office\"]",
+          "categorical__[\"primary_use\",\"Retail\"]"
+        ],
+        "scaler_mean": [
+          18.170731707317074,
+          1033.4634146341464,
+          100.0,
+          2.4878048780487805,
+          3.3902439024390243,
+          3.073170731707317,
+          4.390243902439025,
+          2024.0
+        ],
+        "scaler_var": [
+          15.946460440214157,
+          230.6876859012492,
+          0.0,
+          1.8108268887566925,
+          6.530636525877454,
+          6.165377751338489,
+          6.530636525877454,
+          0.0
+        ],
+        "train_row_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51
+        ],
+        "use_pca": false
+      },
+      "independent_coverage": true,
+      "margin_comparison_exact": true,
+      "shard_sha256": "7f4b2c185e3d40d30158b7e5ec99f6c9d5ea52abad1dcdf04b2d4464f645ab18",
+      "stderr": "",
+      "supervisor": {
+        "artifacts": [
+          {
+            "path": "shard.parquet",
+            "sha256": "7f4b2c185e3d40d30158b7e5ec99f6c9d5ea52abad1dcdf04b2d4464f645ab18"
+          },
+          {
+            "path": "actual-fit.json",
+            "sha256": "33b08cd08e60e406be5070074dce1cc4f003cabbeb11a887595b770fd55208bf"
+          }
+        ],
+        "exit_code": 0,
+        "observation": {
+          "cleanup_confirmed": true,
+          "cpu_limit_enforced": false,
+          "cpu_threads": null,
+          "elapsed_seconds": 1.970946,
+          "exit_code": 0,
+          "informed_opt_out": true,
+          "max_rss_bytes": null,
+          "max_wall_seconds": null,
+          "peak_process_tree_rss_bytes": 265723904,
+          "process_identities": {
+            "1846944": [
+              9488963,
+              1846944,
+              1846944
+            ],
+            "1846945": [
+              9488965,
+              1846944,
+              1846944
+            ]
+          },
+          "reason": null,
+          "rss_limit_enforced": false,
+          "status": "awaiting_validation",
+          "stderr_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/96abca0b97d244149a17f5af6559c04f/stderr.log",
+          "stdout_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/96abca0b97d244149a17f5af6559c04f/stdout.log",
+          "unit": "dim_pca_vs_passthrough/control/r0/f1/model",
+          "wall_limit_enforced": false
+        },
+        "reason": null,
+        "status": "awaiting_validation",
+        "unit": "dim_pca_vs_passthrough/control/r0/f1/model"
+      },
+      "train_only_state_validated": true,
+      "training_rows": 41,
+      "unit": "dim_pca_vs_passthrough/control/r0/f1/model",
+      "validation_rows": 11
+    },
+    {
+      "attempt_id": "8e1b6dcbfd1343628aeeca8ad76c501a",
+      "directory": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a",
+      "fit": {
+        "classes": [
+          0,
+          1
+        ],
+        "config_after": "a8da050833c10c88e0f3e174af675c35c9dc70fea87687711f8df2ef10e83556",
+        "config_before": "a8da050833c10c88e0f3e174af675c35c9dc70fea87687711f8df2ef10e83556",
+        "features": [
+          "meter_reading",
+          "square_feet",
+          "year_built",
+          "floor_count",
+          "hour",
+          "weekday",
+          "month",
+          "year",
+          "primary_use"
+        ],
+        "fit_calls": 1,
+        "fit_finished_ns": 1791225609283674981,
+        "fit_started_ns": 1791225609227999268,
+        "fit_status": 0,
+        "imputer_statistics": [
+          18.0,
+          1035.0,
+          100.0,
+          2.0,
+          3.0,
+          4.0,
+          4.0,
+          2024.0
+        ],
+        "margins": [
+          -0.8228585681573329,
+          -0.8697266234798466,
+          -0.9332810572382322,
+          -0.9956569217097568,
+          -1.0406745695065551,
+          -0.8009935178324585,
+          -0.8272830536641665,
+          -0.8693437016172898,
+          -0.9159259588206139,
+          -0.9565078140198562,
+          -0.9860722733687697
+        ],
+        "model_params": {
+          "C": 1.0,
+          "break_ties": false,
+          "cache_size": 200,
+          "class_weight": null,
+          "coef0": 0.0,
+          "decision_function_shape": "ovr",
+          "degree": 3,
+          "gamma": "scale",
+          "kernel": "rbf",
+          "max_iter": -1,
+          "probability": "deprecated",
+          "random_state": 42,
+          "shrinking": true,
+          "tol": 0.001,
+          "verbose": false
+        },
+        "output_features": [
+          "numeric__pca0",
+          "numeric__pca1",
+          "numeric__pca2",
+          "numeric__pca3",
+          "categorical__[\"primary_use\",\"Education\"]",
+          "categorical__[\"primary_use\",\"Healthcare\"]",
+          "categorical__[\"primary_use\",\"Office\"]",
+          "categorical__[\"primary_use\",\"Retail\"]"
+        ],
+        "pca": {
+          "components": [
+            [
+              0.5456793923136779,
+              0.39912793946352143,
+              -1.3877787807814457e-17,
+              0.08123553822631861,
+              0.5138094947481787,
+              0.0912758581778407,
+              0.5138094947481787,
+              0.0
+            ],
+            [
+              -0.0004507778261467897,
+              0.013600832729692917,
+              -6.028164079019405e-17,
+              -0.7051339082006918,
+              -0.01225226670513219,
+              0.7087317895898287,
+              -0.01225226670513219,
+              -0.0
+            ],
+            [
+              0.05316210047552746,
+              0.4451016331998895,
+              1.1102230246251565e-16,
+              0.5697961428722422,
+              -0.294843921452286,
+              0.5482014289738868,
+              -0.294843921452286,
+              0.0
+            ],
+            [
+              0.18094452743835562,
+              0.6675139206852283,
+              -0.0,
+              -0.4141489036597986,
+              -0.2840085983462869,
+              -0.43456088343255844,
+              -0.2840085983462868,
+              -0.0
+            ]
+          ],
+          "explained_variance_ratio": [
+            0.5462602784764334,
+            0.1879182234956553,
+            0.1569244566188836,
+            0.10889704140902771
+          ],
+          "mean": [
+            -2.7078610356711135e-16,
+            -2.1608731064655487e-15,
+            0.0,
+            2.572467983887558e-17,
+            -1.0831444142684454e-17,
+            -4.332577657073782e-17,
+            -1.408087738548979e-16,
+            0.0
+          ],
+          "n_components": 4,
+          "n_samples": 41,
+          "svd_solver": "full",
+          "variance_fraction": 0.95,
+          "whiten": false
+        },
+        "scaler_mean": [
+          18.170731707317074,
+          1033.4634146341464,
+          100.0,
+          2.4878048780487805,
+          3.3902439024390243,
+          3.073170731707317,
+          4.390243902439025,
+          2024.0
+        ],
+        "scaler_var": [
+          15.946460440214157,
+          230.6876859012492,
+          0.0,
+          1.8108268887566925,
+          6.530636525877454,
+          6.165377751338489,
+          6.530636525877454,
+          0.0
+        ],
+        "train_row_ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51
+        ],
+        "use_pca": true
+      },
+      "independent_coverage": true,
+      "margin_comparison_exact": true,
+      "shard_sha256": "983da9bfba19238ebc1c32c9100d9f9a9619bc5bdd45c1ab893f6a69e16cb624",
+      "stderr": "",
+      "supervisor": {
+        "artifacts": [
+          {
+            "path": "shard.parquet",
+            "sha256": "983da9bfba19238ebc1c32c9100d9f9a9619bc5bdd45c1ab893f6a69e16cb624"
+          },
+          {
+            "path": "actual-fit.json",
+            "sha256": "a3c79be3fd987284bb69041e7ae8000ea2ae56f42ef2f1afc97a3df263e0f37c"
+          }
+        ],
+        "exit_code": 0,
+        "observation": {
+          "cleanup_confirmed": true,
+          "cpu_limit_enforced": false,
+          "cpu_threads": null,
+          "elapsed_seconds": 1.965387,
+          "exit_code": 0,
+          "informed_opt_out": true,
+          "max_rss_bytes": null,
+          "max_wall_seconds": null,
+          "peak_process_tree_rss_bytes": 275243008,
+          "process_identities": {
+            "1847165": [
+              9489172,
+              1847165,
+              1847165
+            ],
+            "1847166": [
+              9489175,
+              1847165,
+              1847165
+            ]
+          },
+          "reason": null,
+          "rss_limit_enforced": false,
+          "status": "awaiting_validation",
+          "stderr_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stderr.log",
+          "stdout_path": "/tmp/opencode/rbf-real-smoke-v2-942bdyac/run/attempts/8e1b6dcbfd1343628aeeca8ad76c501a/stdout.log",
+          "unit": "dim_pca_vs_passthrough/challenger/r0/f1/model",
+          "wall_limit_enforced": false
+        },
+        "reason": null,
+        "status": "awaiting_validation",
+        "unit": "dim_pca_vs_passthrough/challenger/r0/f1/model"
+      },
+      "train_only_state_validated": true,
+      "training_rows": 41,
+      "unit": "dim_pca_vs_passthrough/challenger/r0/f1/model",
+      "validation_rows": 11
+    }
+  ],
+  "v1_immutable_verified": true,
+  "v1_sha256": "7a82e5ee847f1ced8dacb6e3436e68d57ae00b1296292ecf5bfd905eb86717cf"
+}

@@ -1,0 +1,27 @@
+run_id: full_dev_v1
+candidates:
+  - experiment_id: feat_missingness_indicators
+    feature_pool:
+      - meter_reading
+      - primary_use
+      - square_feet
+      - year_built
+      - floor_count
+      - hour
+      - weekday
+      - month
+      - year
+    model_family: hist_gradient_boosting
+    arms: [control, challenger]
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix
+sources:
+  matrix: configs/experiments/feature_campaign.yaml
+  data: outputs/prepared/train_joined.parquet
+  split: outputs/splits/building_folds_repeated.parquet
+  producer: src/project/features/registry.py
+  notebook: notebooks/02_baseline_and_candidate_design.ipynb
+environment:
+  python: "3.13"
+  sklearn: "1.9.1"
+  pandas: "3.0.6"

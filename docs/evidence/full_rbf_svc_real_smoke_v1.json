@@ -1,0 +1,32 @@
+{
+  "actual_model_fits": 0,
+  "artifact_root": "/tmp/opencode/rbf-real-smoke-nxp73223",
+  "blocker": "index cardinality differs from authenticated development rows",
+  "blocker_type": "ValueError",
+  "capability_promoted": false,
+  "environment": {
+    "MKL_NUM_THREADS": "unset",
+    "NUMEXPR_NUM_THREADS": "unset",
+    "OMP_NUM_THREADS": "unset",
+    "OPENBLAS_NUM_THREADS": "unset",
+    "POLARS_MAX_THREADS": "unset",
+    "PyYAML": "6.0.3",
+    "joblib": "1.6.0",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "polars": "1.44.2",
+    "pyarrow": "25.0.1",
+    "python": "3.13.5",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "threadpoolctl": "3.7.0"
+  },
+  "full_scale_feasibility": "severe_unproven_no_ETA",
+  "interpreter": "/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/.venv/bin/python",
+  "production_data_read": false,
+  "python_version": "3.13.5",
+  "source_freeze_verified": true,
+  "status": "blocked",
+  "traceback": "Traceback (most recent call last):\n  File \"<stdin>\", line 27, in <module>\n  File \"/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/src/project/experiments/full_candidate_io.py\", line 118, in build_development_index\n    _verify_index_cardinality(connection, admitted_spec.development_rows)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/src/project/experiments/full_candidate_io.py\", line 682, in _verify_index_cardinality\n    raise ValueError(\"index cardinality differs from authenticated development rows\")\nValueError: index cardinality differs from authenticated development rows\n",
+  "units": []
+}

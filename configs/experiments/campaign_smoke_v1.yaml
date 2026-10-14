@@ -1,0 +1,42 @@
+# Approval covers this bounded future SMOKE only. Parent review must precede launch.
+schema_version: 1
+version: 1
+campaign_id: task7_missingness_smoke_v1
+scope: campaign_smoke
+mode: smoke
+execution_authorized: true
+host_preflight_status: approved
+user_approval_status: approved
+launch_review_status: approved
+source_design: configs/experiments/feature_campaign.yaml
+source_design_sha256: 0133c8ec517a4619b5b7c08960eb8b909c828343e6f6f12f375bf984a61cd86c
+experiment_ids: [feat_missingness_indicators]
+data_reference: outputs/prepared/train_joined.parquet
+repeat_id: 0
+fold_id: 0
+seed: 42
+max_fold_count: 1
+max_seed_count: 1
+maximum_cardinality: 10000
+train_rows: 6000
+validation_rows: 4000
+batch_size: 256
+max_model_fits: 2
+cpu_threads: 2
+max_wall_time_seconds: 120
+# Binary GiB; enforced on live worker PROCESS TREE, including startup/imports.
+max_ram_gb: 1
+rss_measurement: process_tree
+device: cpu
+max_hpo_trials: 0
+non_comparative: true
+n03_eligible: false
+# Same smoke-only settings in both arms, not the frozen default baseline recipe.
+model_params:
+  max_iter: 20
+  max_leaf_nodes: 7
+  min_samples_leaf: 10
+  learning_rate: 0.1
+  early_stopping: false
+  random_state: 42
+  categorical_features: null

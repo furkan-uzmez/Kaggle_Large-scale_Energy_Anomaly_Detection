@@ -1,0 +1,98 @@
+# Full-intent CLI schema, not an authenticated data snapshot or launch grant.
+# Parent must bind actual source bytes and pass fresh full admission before use.
+#
+# Recovery subset for the four experiments left unfinished by Run #4 after the
+# selector ack timeout. This is a SUBSET config: it carries only those four
+# candidates, so its root produces no cross-experiment comparative completion
+# against the other ten. The parent still inventories all 21 authoritative
+# matrix rows; omitted rows remain blocked/prohibited, never completed or
+# Notebook03-eligible.
+run_id: candidate_recovery_selector_v1
+run_directory: outputs/campaigns/candidate_recovery_selector_v1
+development_rows: 1399631
+vault_rows: 349863
+
+# Explicit full-campaign user authorization (not the baseline-only budget).
+# The CLI resolves FullResourcePolicy to informed_opt_out=true, all three
+# enforcement flags=false, and max_rss_bytes/cpu_threads/max_wall_seconds=null.
+# This does not waive scientific, sequential, confinement or completion gates.
+resource_opt_out_record: docs/superpowers/specs/2026-10-04-sequential-full-campaign-design.md#scope-and-informed-resource-opt-out
+
+# Paths only: the parent loader hashes bytes live. No population hashes were
+# read, fabricated or populated while preparing this declarative configuration.
+sources:
+  matrix: configs/experiments/feature_campaign.yaml
+  baseline: configs/experiments/baselines.yaml
+  data: outputs/prepared/train_joined.parquet
+  split: outputs/splits/building_folds_repeated.parquet
+  producer: src/project/features/registry.py
+  notebook: notebooks/02_baseline_and_candidate_design.ipynb
+  encoding: docs/evidence/year_built_encoding_v1.json
+
+# Observed via current_environment() in the project .venv; no thread overrides
+# were imposed. A changed launch environment requires a newly reviewed snapshot.
+environment:
+  MKL_NUM_THREADS: unset
+  NUMEXPR_NUM_THREADS: unset
+  OMP_NUM_THREADS: unset
+  OPENBLAS_NUM_THREADS: unset
+  POLARS_MAX_THREADS: unset
+  PyYAML: 6.0.3
+  joblib: 1.6.0
+  numpy: 2.5.3
+  pandas: 3.0.6
+  polars: 1.44.2
+  pyarrow: 25.0.1
+  python: 3.13.5
+  scikit-learn: 1.9.1
+  scipy: 1.18.1
+  threadpoolctl: 3.7.0
+
+# Frozen 4 folds x 3 repeats, split seeds 42/43/44, estimator seed 42.
+# These four entries are copied verbatim from candidate_full_v2.yaml (same
+# params) so the recovery reproduces the exact declared experiments. No trials
+# or sampling. Sentinel/invalid rules are never invented.
+candidates:
+  - experiment_id: dim_fold_local_selector_vs_passthrough
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: logistic_l2
+    model_params: {C: 1.0, l1_ratio: 0.0, solver: lbfgs, class_weight: null, max_iter: 1000, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: [challenger]
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: regime_natural_vs_class_weighted
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_missingness_passthrough_comparison
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: model_extratrees_core_features
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: extra_trees
+    model_params: {n_estimators: 64, max_depth: 12, min_samples_leaf: 2, max_features: sqrt, bootstrap: false, class_weight: null, n_jobs: 1, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+# Scope note: this recovery completes only the four experiments above. It does
+# not produce the single-root fourteen-experiment comparative completion needed
+# for Notebook03, and it cannot be merged with Run #4's root.

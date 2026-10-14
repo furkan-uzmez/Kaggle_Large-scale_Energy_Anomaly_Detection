@@ -1,0 +1,25 @@
+{
+  "encoding_id": "lead_year_offset_1900_uint8_v1",
+  "repository": "https://github.com/buds-lab/ashrae-great-energy-predictor-3-solution-analysis",
+  "revision": "6cb180f2dbc6d33afb2b8b1fb0dbb369f62fd634",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/buds-lab/ashrae-great-energy-predictor-3-solution-analysis/6cb180f2dbc6d33afb2b8b1fb0dbb369f62fd634/solutions/rank-1/scripts/02_preprocess_data.py",
+      "sha256": "e44a99c219f673ffd310f64cab223d3c0b4cc690c7cba1243c28d6d07426d784",
+      "verified_operations": ["df[\"year_built\"] = df[\"year_built\"]-1900", "add_features before reduce_mem_usage"]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/buds-lab/ashrae-great-energy-predictor-3-solution-analysis/6cb180f2dbc6d33afb2b8b1fb0dbb369f62fd634/solutions/rank-1/ashrae/utils.py",
+      "sha256": "d06645e0040ce82c7b68fafba033a6c59e6fa6fe220d51e3d92c41b274e57938",
+      "verified_operations": ["mn and mx computed before fillna(mn-1)", "integer branch uses original mn >= 0 and mx < 255 to cast uint8"]
+    }
+  ],
+  "contract": {
+    "selection": "Explicit configuration only; never infer from ranges.",
+    "valid_input": "Finite integral 0..255 or native null.",
+    "known_values": "0..254 decode by adding 1900; raw values stay unchanged.",
+    "missing_values": "255 or native null.",
+    "derivation_scope": "When pre-fill offset minimum is 0, missing fill -1 casts to uint8 code 255; known zero denotes 1900. This is the declared versioned contract, not verification of any local dataset minimum.",
+    "floor_count": "No sentinel inference; zero is not declared missing."
+  }
+}

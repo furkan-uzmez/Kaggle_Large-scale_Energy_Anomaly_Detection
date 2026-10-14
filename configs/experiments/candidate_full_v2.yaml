@@ -1,0 +1,214 @@
+# Full-intent CLI schema, not an authenticated data snapshot or launch grant.
+# Parent must bind actual source bytes and pass fresh full admission before use.
+# Fourteen snapshots cover twelve source-matrix rows. Target encoding is
+# deferred (data-ready only) until a genuine worker fit route is promoted; it is
+# deliberately NOT a config candidate because selecting it would block the
+# ordinary preflight and capability gates for the entire run.
+# Semantic drop has three explicit variants of its ONE source row.
+# The runner still inventories all 21 authoritative matrix rows; omitted rows
+# remain blocked/prohibited, never completed or Notebook03-eligible.
+run_id: candidate_full_v2
+run_directory: outputs/campaigns/candidate_full_v2
+development_rows: 1399631
+vault_rows: 349863
+
+# Explicit full-campaign user authorization (not the baseline-only budget).
+# The CLI resolves FullResourcePolicy to informed_opt_out=true, all three
+# enforcement flags=false, and max_rss_bytes/cpu_threads/max_wall_seconds=null.
+# This does not waive scientific, sequential, confinement or completion gates.
+resource_opt_out_record: docs/superpowers/specs/2026-10-04-sequential-full-campaign-design.md#scope-and-informed-resource-opt-out
+
+# Paths only: the parent loader hashes bytes live. No population hashes were
+# read, fabricated or populated while preparing this declarative configuration.
+sources:
+  matrix: configs/experiments/feature_campaign.yaml
+  baseline: configs/experiments/baselines.yaml
+  data: outputs/prepared/train_joined.parquet
+  split: outputs/splits/building_folds_repeated.parquet
+  producer: src/project/features/registry.py
+  notebook: notebooks/02_baseline_and_candidate_design.ipynb
+  encoding: docs/evidence/year_built_encoding_v1.json
+
+# Observed via current_environment() in the project .venv; no thread overrides
+# were imposed. A changed launch environment requires a newly reviewed snapshot.
+environment:
+  MKL_NUM_THREADS: unset
+  NUMEXPR_NUM_THREADS: unset
+  OMP_NUM_THREADS: unset
+  OPENBLAS_NUM_THREADS: unset
+  POLARS_MAX_THREADS: unset
+  PyYAML: 6.0.3
+  joblib: 1.6.0
+  numpy: 2.5.3
+  pandas: 3.0.6
+  polars: 1.44.2
+  pyarrow: 25.0.1
+  python: 3.13.5
+  scikit-learn: 1.9.1
+  scipy: 1.18.1
+  threadpoolctl: 3.7.0
+
+# Frozen 4 folds x 3 repeats, split seeds 42/43/44, estimator seed 42;
+# Promoted subset: 348 model fits + 12 selector fits = 360 total.
+# Target encoding (24 model fits) is deferred until its runtime route is
+# promoted; 48 encoder objects would be transformer state, not extra estimator
+# debits. Sentinel is explicitly not_applicable: no observed negative readings,
+# no invented invalid rule/fits. No trials or sampling.
+candidates:
+  - experiment_id: feat_missingness_indicators
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_categorical_interactions
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_frequency_encoding
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  # Scientific data proof is independently pinned in full_development_readiness;
+  # config selection is NOT capability or permission to begin a fit.
+  - experiment_id: feat_meter_deviation_ratio
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_histogram_quantile
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {n_bins: 8, n_quantiles: 64}
+    arms: [control, bin, quantile]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_missingness_bitmask
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_safe_calendar_numeric_transforms
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: dim_semantic_block_drop_calendar
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {drop_block: calendar}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: dim_semantic_block_drop_measurement
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {drop_block: measurement}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: dim_semantic_block_drop_building_metadata
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {drop_block: building_metadata}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: dim_fold_local_selector_vs_passthrough
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: logistic_l2
+    model_params: {C: 1.0, l1_ratio: 0.0, solver: lbfgs, class_weight: null, max_iter: 1000, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: [challenger]
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: regime_natural_vs_class_weighted
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: feat_missingness_passthrough_comparison
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: hist_gradient_boosting
+    model_params: {early_stopping: false, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+  - experiment_id: model_extratrees_core_features
+    feature_pool: [meter_reading, square_feet, year_built, floor_count, hour, weekday, month, year, primary_use]
+    model_family: extra_trees
+    model_params: {n_estimators: 64, max_depth: 12, min_samples_leaf: 2, max_features: sqrt, bootstrap: false, class_weight: null, n_jobs: 1, random_state: 42}
+    method_params: {}
+    arms: [control, challenger]
+    selector_arms: []
+    source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+    source_cell_id: cand-matrix-render
+
+# Deferred decisions are documented, not executable candidate entries:
+# - Provided pool, sentinel and group/GTE features need authentic evidence.
+# - HPO finite random search T=8/K=3/seed=42 is approved by
+#   docs/superpowers/specs/2026-10-04-full-campaign-decisions.md section 2;
+#   its worker lifecycle is not promoted into the current ordinary capability.
+#   No Bayesian method or executable study is claimed here.
+# - Three separate semantic-block variants are approved by that document
+#   section 3 and explicitly linked to the original dim_semantic_block_drop row.
+#   All three are required before the parent source row can claim completion.
+# - AutoGluon remains blocked until full-profile bridge/supervisor proof, even
+#   though a separately reviewed installation is authorized (section 4).
+# - Exact RBF SVC remains unsampled and unsubstituted; it needs separate route
+#   promotion and retains its severe full-scale feasibility risk (section 6).
+# - Other factory-supported recipes require separately reviewed full transport.
+# - Opaque building-ID digit extraction is prohibited, never scheduled.

@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "record_kind": "approval_not_execution_proof",
+  "decision_date": "2026-10-05",
+  "authority": "Explicit user decision and seeded-profile instruction in the implementation session",
+  "scope": "model_autogluon_core_features challenger: restricted AutoGluon 1.4.0 XT profile, not default AutoML or standalone ExtraTrees equivalence",
+  "native_memory_protection": "keep",
+  "memory_limit_backend": "auto",
+  "custom_memory_override": "forbidden; reject inherited AG_MEMORY_LIMIT_IN_GB",
+  "reduced_forest_policy": "Reject the experiment if final actual forest contains fewer than or other than 64 trees; no silent profile changes",
+  "resource_policy": {
+    "informed_opt_out": true,
+    "rss_limit_enforced": false,
+    "max_rss_bytes": null,
+    "cpu_limit_enforced": false,
+    "cpu_threads": null,
+    "wall_limit_enforced": false,
+    "max_wall_seconds": null
+  },
+  "constructor": {
+    "label": "anomaly",
+    "problem_type": "binary",
+    "eval_metric": "roc_auc",
+    "positive_class": 1,
+    "learner_kwargs": {"random_state": 42}
+  },
+  "xt_hyperparameters": {
+    "n_estimators": 64,
+    "max_depth": 12,
+    "min_samples_leaf": 2,
+    "random_state": 42
+  },
+  "preserved_native_xt_defaults": {
+    "bootstrap": true,
+    "max_leaf_nodes": 15000,
+    "n_jobs": -1,
+    "criterion": "gini",
+    "oob_score": false
+  },
+  "fit_policy": {
+    "fit_strategy": "sequential",
+    "time_limit": null,
+    "presets": null,
+    "num_bag_folds": 0,
+    "num_bag_sets": 1,
+    "num_stack_levels": 0,
+    "auto_stack": false,
+    "dynamic_stacking": false,
+    "fit_weighted_ensemble": false,
+    "refit_full": false,
+    "set_best_to_refit_full": false,
+    "hyperparameter_tune_kwargs": null,
+    "calibrate": false,
+    "calibrate_decision_threshold": false,
+    "feature_prune_kwargs": null,
+    "learning_curves": false,
+    "raise_on_model_failure": true,
+    "raise_on_no_models_fitted": true
+  },
+  "threading_note": "n_jobs=-1 tree threading is permitted. num_cpus=1 remains a backend resource hint, not a campaign CPU cap or proof of one thread. One model fit is distinct from tree/thread count.",
+  "holdout_policy": "AutoGluon internal holdout may use only the isolated admitted outer-training table; never outer validation, vault or competition-test labels",
+  "audit_policy": "Exactly one XT model attempt/object with no overlap, including failed or nonsurviving models; the same forest may grow via [64] or warm-start [4,64]. Verify final len(estimators_)=64 and both seeds=42.",
+  "execution_evidence": null,
+  "promotion_status": "Requires parent-owned sequential real tiny-fit proof and final integration validation"
+}

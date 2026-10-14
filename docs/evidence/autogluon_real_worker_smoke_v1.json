@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "record_kind": "real_tiny_synthetic_backend_execution",
+  "execution_date": "2026-10-05",
+  "test_command": "rtk proxy .venv/bin/python -m pytest tests/integration/test_full_autogluon_real_worker.py -q -s --tb=short",
+  "test_result": "1 passed in 6.29s",
+  "raw_execution_report": "/tmp/opencode/autogluon-real-worker-v1-p02ggspw/real-smoke-report.json",
+  "interpreter": "/home/furkan/Projects/Kaggle_Large-scale_Energy_Anomaly_Detection/.venv-autogluon/bin/python",
+  "versions": {"python": "3.12.12", "autogluon.tabular": "1.4.0", "pandas": "2.3.3", "pyarrow": "20.0.0", "scikit-learn": "1.7.2"},
+  "fixture": {"train_rows_per_unit": 128, "train_class_counts": {"0": 64, "1": 64}, "prediction_rows_per_unit": 32, "canonical_features": 9, "categories_and_nulls": true, "prediction_batch_rows": 7, "prediction_batches_per_unit": 5},
+  "approved_profile_sha256": "2234b2a0a863b8a33d21da415dfa647eb9c10fad918c7d26a6f22799624bd1c0",
+  "profile": {"learner_seed": 42, "forest_seed": 42, "n_estimators": 64, "max_depth": 12, "min_samples_leaf": 2, "bootstrap": true, "max_leaf_nodes": 15000, "n_jobs": -1, "memory_limit": "auto", "native_memory_protection": "keep", "campaign_caps": null},
+  "runtime_guards": {"actual_criterion_gini_and_oob_score_false_verified_by_forest_hook": true, "inventory_criterion_and_oob_score": "AutoGluon info omitted these fields (null); not substituted for runtime hook checks"},
+  "units": [
+    {"unit": "model_autogluon_core_features/challenger/r0/f0/model", "attempt_id": "e6a6bbe4560f48e8af10fa1a77c4ab9a", "trainer_attempts": 1, "abstract_fit_attempts": 1, "forest_growth": [64], "actual_trees": 64, "exit_code": 0, "cleanup_confirmed": true, "elapsed_seconds": 2.541303, "supervisor_state": "awaiting_validation", "backend_state": "awaiting_parent_validation", "parent_tiny_unit_state": "completed", "signed_response_sha256": "ccbaeecbaf5bf8385842c2b03bd11ce88fa71d5f78eb3793c7623efd05e58276"},
+    {"unit": "model_autogluon_core_features/challenger/r0/f1/model", "attempt_id": "311db507880142248a81e195d4b19470", "trainer_attempts": 1, "abstract_fit_attempts": 1, "forest_growth": [64], "actual_trees": 64, "exit_code": 0, "cleanup_confirmed": true, "elapsed_seconds": 2.197192, "supervisor_state": "awaiting_validation", "backend_state": "awaiting_parent_validation", "parent_tiny_unit_state": "completed", "signed_response_sha256": "638354df727d92d0b2982f6d331a5da391b5b1f15b2441bbe97cd6961e38d556"}
+  ],
+  "parent_journal": {"path": "/tmp/opencode/autogluon-real-worker-v1-p02ggspw/run/full_fit.sqlite3", "sha256": "7718dbde3bf227c6073fd3c0d3d97fe2c5b88423dfc0c551643e8bd3e69b6a73", "head": "0b2f0fd83391c0d3d15620067ae062a10cd771231cdab9f7edf5a76872bd81f7", "event_count": 6, "model_fit_count": 2},
+  "validation": {"parent_durable_debit_ack_before_construction": true, "signed_request_response_verified": true, "source_config_encoding_environment_bindings_verified": true, "distinct_nonce_per_unit": true, "owned_process_exit_independently_confirmed": true, "second_launch_after_first_cleanup": true, "integer_classes_0_1_and_positive_1": true, "normalized_probabilities": true, "independent_parent_probability_range_and_exact_order_checks": true, "cross_unit_seeded_scores_equal": true, "score_parquet_sha256_both_units": "12c658a4c4fbd8ecc5522a2362af1a13194cb63a9b87fb26e44e368fb255153d"},
+  "production_data_accessed": false,
+  "full_campaign_promoted": false,
+  "comparative_full_completion": false,
+  "limitations": ["Synthetic tiny backend transport proof only, not comparative CV or full-campaign completion", "Parent owns route promotion and canonical OOF/sequence-2 integration", "Reserved excluded membership is metadata only; no vault features or labels exist", "Raw execution report retains exact producer-source hash before later lint-only test edits", "Two initial supervised red-gate attempts failed before construction because the supervisor target was absent; their cleanup was confirmed and no estimators fitted"]
+}

@@ -1,0 +1,60 @@
+# Reviewed route intent; no fit, data readiness, or completion authority is implied.
+run_id: provided_full_preflight_v2
+run_directory: outputs/campaigns/provided_full_preflight_v2
+development_rows: 1399631
+vault_rows: 349863
+resource_opt_out_record: docs/superpowers/specs/2026-10-04-sequential-full-campaign-design.md#scope-and-informed-resource-opt-out
+sources:
+  matrix: configs/experiments/feature_campaign.yaml
+  baseline: configs/experiments/baselines.yaml
+  data: outputs/prepared/train_joined.parquet
+  split: outputs/splits/building_folds_repeated.parquet
+  producer: src/project/features/registry.py
+  notebook: notebooks/02_baseline_and_candidate_design.ipynb
+  encoding: docs/evidence/year_built_encoding_v1.json
+environment:
+  MKL_NUM_THREADS: unset
+  NUMEXPR_NUM_THREADS: unset
+  OMP_NUM_THREADS: unset
+  OPENBLAS_NUM_THREADS: unset
+  POLARS_MAX_THREADS: unset
+  PyYAML: 6.0.3
+  joblib: 1.6.0
+  numpy: 2.5.3
+  pandas: 3.0.6
+  polars: 1.44.2
+  pyarrow: 25.0.1
+  python: 3.13.5
+  scikit-learn: 1.9.1
+  scipy: 1.18.1
+  threadpoolctl: 3.7.0
+candidates:
+- experiment_id: feat_core_vs_provided
+  feature_pool:
+  - meter_reading
+  - primary_use
+  - square_feet
+  - year_built
+  - floor_count
+  - hour
+  - weekday
+  - month
+  - year
+  - air_temperature
+  - cloud_coverage
+  - dew_temperature
+  - precip_depth_1_hr
+  - sea_level_pressure
+  - wind_direction
+  - wind_speed
+  model_family: hist_gradient_boosting
+  model_params:
+    early_stopping: false
+    random_state: 42
+  method_params: {}
+  arms:
+  - control
+  - challenger
+  selector_arms: []
+  source_notebook: notebooks/02_baseline_and_candidate_design.ipynb
+  source_cell_id: cand-matrix-render

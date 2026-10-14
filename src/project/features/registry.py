@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from project.features.input_encoding import (
+    ABSOLUTE_CALENDAR_YEAR,
+    require_year_built_encoding,
+)
+
 
 class AvailabilityStatus(str, Enum):
     """Whether a feature value is available at scoring time."""
@@ -134,8 +139,9 @@ def _validate_enum(field_name: str, value: object, enum_type: type[Enum]) -> Non
         raise TypeError(f"{field_name} must be a {enum_type.__name__} value")
 
 
-def build_lead_baseline_registry() -> FeatureRegistry:
+def build_lead_baseline_registry(year_built_encoding: str = ABSOLUTE_CALENDAR_YEAR) -> FeatureRegistry:
     """Return the approved nine-predictor registry for the baseline portfolio."""
+    require_year_built_encoding(year_built_encoding)
     return FeatureRegistry(
         [
             FeatureMetadata(
@@ -178,11 +184,18 @@ def build_lead_baseline_registry() -> FeatureRegistry:
                 name="year_built",
                 family="building_metadata",
                 source_columns=("year_built",),
-                semantic_meaning="Year the building was constructed.",
+                semantic_meaning=("Absolute calendar year the building was constructed (1..9999)."
+                                  if year_built_encoding == ABSOLUTE_CALENDAR_YEAR else
+                                  "Raw lead_year_offset_1900_uint8_v1 construction-year code: "
+                                  "0..254 decode as code + 1900; 0 is legitimate 1900; "
+                                  "255 and native null are missing. Preserve raw values."),
                 prediction_time_availability=AvailabilityStatus.AVAILABLE,
                 target_dependence=TargetDependence.INDEPENDENT,
                 transform_fit_boundary=TransformFitBoundary.OUTER_TRAIN,
-                fallback_behavior="Retain native missing values for median imputation.",
+                fallback_behavior=("Retain native missing values for median imputation."
+                                   if year_built_encoding == ABSOLUTE_CALENDAR_YEAR else
+                                   "Retain raw codes and native nulls unchanged; 255 denotes missing "
+                                   "for derived features, not an automatic raw imputation rewrite."),
                 resource_cost=ResourceCost.LOW,
                 provenance_status=ProvenanceStatus.VERIFIED,
             ),
@@ -248,4 +261,3 @@ def build_lead_baseline_registry() -> FeatureRegistry:
             ),
         ]
     )
-
